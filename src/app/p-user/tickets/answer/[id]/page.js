@@ -1,36 +1,54 @@
+import { isValidObjectId } from "mongoose";
+import { notFound } from "next/navigation";
 import Layout from "@/components/layouts/UserPanelLayout";
 import styles from "@/styles/p-user/answerTicket.module.css";
 import Link from "next/link";
 import Answer from "@/components/templates/p-user/tickets/Answer";
-import connectToDB from "@/configs/db";
 import TicketModel from "@/models/Ticket";
+import { authUser } from "@/utils/serverHelpers";
 
-const page = async ({ params }) => {
-  const ticketID = params.id;
-  connectToDB();
-  const ticket = await TicketModel.findOne({ _id: ticketID })
-    .populate("user", "name")
+const Page = async ({ params }) => {
+  const { id } = await params;
+  if (!isValidObjectId(id)) notFound();
+
+  const user = await authUser();
+  if (!user) notFound();
+
+  const ticket = await TicketModel.findOne({
+    _id: id,
+    user: user._id,
+    isAnswer: false,
+  })
+    .populate("user", "name role")
     .lean();
 
-  const answerTicket = await TicketModel.findOne({
-    mainTicket: ticket._id,
-  }).populate("user", "name");
+  if (!ticket) notFound();
 
-  console.log("answerTicket ->", answerTicket);
+  const answers = await TicketModel.find({
+    mainTicket: ticket._id,
+    isAnswer: true,
+  })
+    .populate("user", "name role")
+    .sort({ createdAt: 1 })
+    .lean();
 
   return (
     <Layout>
       <main className={styles.container}>
         <h1 className={styles.title}>
-          <span>تیکت تستی</span>
+          <span>{ticket.title}</span>
           <Link href="/p-user/tickets/sendTicket">ارسال تیکت جدید</Link>
         </h1>
-
         <div>
-          <Answer type="user" {...ticket} />
-          {answerTicket && <Answer {...ticket} type="admin" />}
-
-          {!answerTicket && (
+          <Answer type="user" {...JSON.parse(JSON.stringify(ticket))} />
+          {answers.map((answer) => (
+            <Answer
+              key={String(answer._id)}
+              type={answer.user?.role === "ADMIN" ? "admin" : "user"}
+              {...JSON.parse(JSON.stringify(answer))}
+            />
+          ))}
+          {answers.length === 0 && (
             <div className={styles.empty}>
               <p>هنوز پاسخی دریافت نکردید</p>
             </div>
@@ -41,4 +59,4 @@ const page = async ({ params }) => {
   );
 };
 
-export default page;
+export default Page;

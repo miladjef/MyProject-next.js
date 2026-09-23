@@ -5,10 +5,16 @@ const schema = new mongoose.Schema(
     phone: {
       type: String,
       required: false,
+      unique: true,
+      sparse: true,
+      index: true,
     },
     email: {
       type: String,
       required: false,
+      unique: true,
+      sparse: true,
+      index: true,
     },
   },
   {

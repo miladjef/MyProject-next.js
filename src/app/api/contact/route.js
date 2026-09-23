@@ -1,26 +1,2 @@
-import connectToDB from "@/configs/db";
-import ContactModel from "@/models/Contact";
-
-export async function POST(req) {
-  try {
-    connectToDB();
-    const body = await req.json();
-    const { name, email, phone, company, message } = body;
-
-    // Validation (You)
-
-    await ContactModel.create({ name, email, phone, company, message });
-
-    return Response.json(
-      { message: "Message saved successfully :))" },
-      { status: 201 }
-    );
-  } catch (err) {
-    return Response.json(
-      { message: err },
-      {
-        status: 500,
-      }
-    );
-  }
-}
+import { NextResponse } from "next/server"; import connectToDB from "@/configs/db"; import ContactModel from "@/models/Contact"; import { normalizePhone, valiadteEmail, valiadtePhone } from "@/utils/validation";
+export async function POST(req){try{await connectToDB();const{name="",email="",phone="",company="",message=""}=await req.json();const e=email.trim().toLowerCase(),p=normalizePhone(phone);if(!name.trim()||!valiadteEmail(e)||!valiadtePhone(p)||!message.trim())return NextResponse.json({message:"Invalid data"},{status:400});await ContactModel.create({name:name.trim(),email:e,phone:p,company:company.trim(),message:message.trim()});return NextResponse.json({message:"Message saved"},{status:201});}catch{return NextResponse.json({message:"Internal server error"},{status:500});}}

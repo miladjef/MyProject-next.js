@@ -33,6 +33,7 @@ const Details = ({ product }) => {
           id: product._id,
           name: product.name,
           price: product.price,
+          img: product.img,
           count,
         };
 
@@ -46,6 +47,7 @@ const Details = ({ product }) => {
         id: product._id,
         name: product.name,
         price: product.price,
+        img: product.img,
         count,
       };
 
@@ -87,7 +89,7 @@ const Details = ({ product }) => {
       <div className={styles.cart}>
         <button onClick={addToCart}>افزودن به سبد خرید</button>
         <div>
-          <span onClick={() => setCount(count - 1)}>-</span>
+          <span onClick={() => setCount((value) => Math.max(1, value - 1))}>-</span>
           {count}
           <span onClick={() => setCount(count + 1)}>+</span>
         </div>

@@ -3,30 +3,27 @@ import DiscountModel from "@/models/Discount";
 
 export async function PUT(req) {
   try {
-    connectToDB();
-    const body = await req.json();
-    const { code } = body;
+    await connectToDB();
+    const { code } = await req.json();
+    const cleanCode = String(code || "").trim().toUpperCase();
+    if (!cleanCode) return Response.json({ message: "Code is required" }, { status: 400 });
 
-    // Validation (You) ✅
-
-    const discount = await DiscountModel.findOne({ code });
-    await DiscountModel.findOneAndUpdate(
-      { code },
-      {
-        $inc: {
-          uses: 1,
-        },
-      }
+    const discount = await DiscountModel.findOneAndUpdate(
+      { code: cleanCode, $expr: { $lt: ["$uses", "$maxUse"] } },
+      { $inc: { uses: 1 } },
+      { new: true }
     );
 
     if (!discount) {
-      return Response.json({ message: "Code not found !!" }, { status: 404 });
-    } else if (discount.uses === discount.maxUse) {
-      return Response.json({ message: "Code usage limit" }, { status: 422 });
-    } else {
-      return Response.json(discount);
+      const exists = await DiscountModel.exists({ code: cleanCode });
+      return Response.json(
+        { message: exists ? "Code usage limit" : "Code not found" },
+        { status: exists ? 422 : 404 }
+      );
     }
+
+    return Response.json({ code: discount.code, percent: discount.percent });
   } catch (err) {
-    return Response.json({ message: err }, { status: 500 });
+    return Response.json({ message: err.message || "Discount check failed" }, { status: 500 });
   }
 }

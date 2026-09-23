@@ -4,42 +4,29 @@ import connectToDB from "@/configs/db";
 import { verifyAccessToken } from "./auth";
 
 const authUser = async () => {
-  connectToDB();
-  const token = cookies().get("token");
-  let user = null;
+  await connectToDB();
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+  if (!token) return null;
 
-  if (token) {
-    const tokenPayload = verifyAccessToken(token.value);
-    if (tokenPayload) {
-      user = await UserModel.findOne({ email: tokenPayload.email });
-    }
+  const tokenPayload = verifyAccessToken(token);
+  if (!tokenPayload) return null;
+
+  if (tokenPayload.userId || tokenPayload.sub) {
+    return UserModel.findById(tokenPayload.userId || tokenPayload.sub);
   }
 
-  return user;
+  // Backward compatibility for tokens issued by older releases.
+  if (tokenPayload.email) {
+    return UserModel.findOne({ email: tokenPayload.email });
+  }
+
+  return null;
 };
 
 const authAdmin = async () => {
-  connectToDB();
-  const token = cookies().get("token");
-  let user = null;
-
-  if (token) {
-    const tokenPayload = verifyAccessToken(token.value);
-    if (tokenPayload) {
-      user = await UserModel.findOne({ email: tokenPayload.email });
-      if (user.role === "ADMIN") {
-        return user;
-      } else {
-        return null;
-      }
-    } else {
-      return null;
-    }
-  } else {
-    return null;
-  }
-
-  return user;
+  const user = await authUser();
+  return user?.role === "ADMIN" ? user : null;
 };
 
 export { authUser, authAdmin };

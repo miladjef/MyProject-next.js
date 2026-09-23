@@ -1,12 +1,12 @@
 import styles from "./topbar.module.css";
 import { IoIosSearch, IoIosNotifications } from "react-icons/io";
-const Topbar = () => {
+const Topbar = ({ user }) => {
   return (
     <>
       <div className={styles.topbar}>
         <div className={styles.profile}>
           <div>
-            <p>شاهین مشکل گشا</p>
+            <p>{user?.name || "مدیر"}</p>
             <span>ادمین</span>
           </div>
           <img src="/images/shahin.jpg" alt="" />

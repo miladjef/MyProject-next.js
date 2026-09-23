@@ -1,27 +1,15 @@
 const mongoose = require("mongoose");
 
-const schema = new mongoose.Schema({
-  phone: {
-    type: String,
-    required: true,
+const schema = new mongoose.Schema(
+  {
+    phone: { type: String, required: true, index: true },
+    code: { type: String, required: true },
+    expTime: { type: Number, required: true },
+    times: { type: Number, default: 0 },
+    lastSentAt: { type: Number, required: true },
   },
-  code: {
-    type: String,
-    required: true,
-  },
-  expTime: {
-    type: Number,
-    required: true,
-  },
-  times: {
-    // You
-    type: Number,
-    default: 0, // 3
-  },
-});
-
-// codes.txt -> 99000
+  { timestamps: true }
+);
 
 const model = mongoose.models.Otp || mongoose.model("Otp", schema);
-
 export default model;

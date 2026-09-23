@@ -1,31 +1,18 @@
 import connectToDB from "@/configs/db";
 import { authUser } from "@/utils/serverHelpers";
 import WishlistModel from "@/models/Wishlist";
+import { isValidObjectId } from "mongoose";
 
 export async function DELETE(req, { params }) {
   try {
-    connectToDB();
+    await connectToDB();
+    const { id } = await params;
     const user = await authUser();
-    if (!user) {
-      return Response.json(
-        { message: "Please login first !!" },
-        { status: 401 }
-      );
-    }
-
-    const productID = params.id;
-    await WishlistModel.findOneAndDelete({
-      user: user._id,
-      product: productID,
-    });
-
-    return Response.json({ message: "Product removed successfully :))" });
+    if (!user) return Response.json({ message: "Unauthorized" }, { status: 401 });
+    if (!isValidObjectId(id)) return Response.json({ message: "Invalid product id" }, { status: 400 });
+    await WishlistModel.findOneAndDelete({ user: user._id, product: id });
+    return Response.json({ message: "Product removed successfully" });
   } catch (err) {
-    return Response.json(
-      { message: err },
-      {
-        status: 500,
-      }
-    );
+    return Response.json({ message: err.message || "Wishlist update failed" }, { status: 500 });
   }
 }

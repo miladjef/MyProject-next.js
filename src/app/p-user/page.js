@@ -7,9 +7,11 @@ import { authUser } from "@/utils/serverHelpers";
 import TicketModel from "@/models/Ticket";
 import CommentModel from "@/models/Comment";
 import WishlistModel from "@/models/Wishlist";
+import { redirect } from "next/navigation";
 
 const page = async () => {
   const user = await authUser();
+  if (!user) redirect("/login-register");
   const tickets = await TicketModel.find({ user: user._id })
     .limit(3)
     .populate("department", "title")
@@ -17,7 +19,9 @@ const page = async () => {
     .lean();
 
   const allTickets = await TicketModel.find({ user: user._id });
-  const comments = await CommentModel.find({ user: String(user._id) });
+  const comments = await CommentModel.find({
+    $or: [{ user: user._id }, ...(user.email ? [{ email: user.email }] : [])],
+  });
   const wishes = await WishlistModel.find({ user: user._id });
 
   return (

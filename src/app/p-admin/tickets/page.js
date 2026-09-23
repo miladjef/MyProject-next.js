@@ -4,12 +4,16 @@ import styles from "@/components/templates/p-admin/tickets/table.module.css";
 import Table from "@/components/templates/p-admin/tickets/Table";
 import connectToDB from "@/configs/db";
 import TicketModel from "@/models/Ticket";
+import { authAdmin } from "@/utils/serverHelpers";
+import { redirect } from "next/navigation";
 
 const page = async () => {
-  connectToDB();
+  const admin = await authAdmin();
+  if (!admin) redirect("/login-register");
+  await connectToDB();
   const tickets = await TicketModel.find({ isAnswer: false })
     .sort({ _id: -1 })
-    .populate("user")
+    .populate("user", "name email phone role")
     .populate("department")
     .lean();
 

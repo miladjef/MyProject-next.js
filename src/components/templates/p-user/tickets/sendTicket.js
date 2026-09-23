@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import swal from "sweetalert";
 import styles from "@/styles/p-user/sendTicket.module.css";
 import Link from "next/link";
 import { IoIosSend } from "react-icons/io";

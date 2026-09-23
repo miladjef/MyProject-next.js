@@ -5,9 +5,13 @@ import Table from "@/components/templates/p-admin/products/Table";
 import connectToDB from "@/configs/db";
 import ProductModel from "@/models/Product";
 import AddProduct from "@/components/templates/p-admin/products/AddProduct";
+import { authAdmin } from "@/utils/serverHelpers";
+import { redirect } from "next/navigation";
 
 const page = async () => {
-  connectToDB();
+  const admin = await authAdmin();
+  if (!admin) redirect("/login-register");
+  await connectToDB();
   const products = await ProductModel.find({}).sort({ _id: -1 }).lean();
 
   return (

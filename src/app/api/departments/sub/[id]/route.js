@@ -4,16 +4,11 @@ import SubDepartmentModel from "@/models/SubDepartment";
 
 export async function GET(req, { params }) {
   try {
-    connectToDB();
-    const id = params.id;
-    if (!isValidObjectId(id)) {
-      return Response.json({ message: "ID is not valid !!" }, { status: 422 });
-    }
-
-    const subDepartments = await SubDepartmentModel.find({ department: id });
-
-    return Response.json(subDepartments, { status: 200 });
+    await connectToDB();
+    const { id } = await params;
+    if (!isValidObjectId(id)) return Response.json({ message: "Invalid department id" }, { status: 400 });
+    return Response.json(await SubDepartmentModel.find({ department: id }).sort({ title: 1 }));
   } catch (err) {
-    return Response.json({ message: err }, { status: 500 });
+    return Response.json({ message: err.message || "SubDepartments fetch failed" }, { status: 500 });
   }
 }

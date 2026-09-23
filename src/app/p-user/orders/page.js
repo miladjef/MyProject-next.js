@@ -1,0 +1,1 @@
+import UserPanelLayout from "@/components/layouts/UserPanelLayout";export default function Page(){return <UserPanelLayout><main style={{direction:"rtl",padding:30}}><h1>سفارش‌ها</h1><p style={{marginTop:24}}>هنوز سفارشی ثبت نشده است.</p></main></UserPanelLayout>}

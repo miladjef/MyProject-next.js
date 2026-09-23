@@ -1,16 +1,25 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
+
+let connectionPromise = null;
 
 const connectToDB = async () => {
-  try {
-    if (mongoose.connections[0].readyState) {
-      return true;
-    } else {
-      await mongoose.connect(process.env.MONGO_URL);
-      console.log("Connect To DB Successfully :))");
-    }
-  } catch (err) {
-    console.log("DB Connection has error ->", err);
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
   }
+
+  if (!process.env.MONGO_URL) {
+    throw new Error("MONGO_URL is not configured");
+  }
+
+  if (!connectionPromise) {
+    connectionPromise = mongoose.connect(process.env.MONGO_URL).catch((error) => {
+      connectionPromise = null;
+      throw error;
+    });
+  }
+
+  await connectionPromise;
+  return mongoose.connection;
 };
 
 export default connectToDB;

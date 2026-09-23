@@ -96,7 +96,7 @@ const Footer = () => {
           <MdOutlineCopyright /> تمام حقوق متعلق است به <strong>
             قهوه ست
           </strong>{" "}
-          | طراحی و اجرا <strong>نیلامارکتینگ</strong>
+          | برنامه نویس <strong>miladjef</strong>
         </p>
       </div>
     </footer>

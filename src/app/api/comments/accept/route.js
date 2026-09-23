@@ -1,30 +1,19 @@
 import connectToDB from "@/configs/db";
 import CommentModel from "@/models/Comment";
 import { authAdmin } from "@/utils/serverHelpers";
+import { isValidObjectId } from "mongoose";
 
 export async function PUT(req) {
   try {
-    const isAdmin = await authAdmin();
-
-    if (!isAdmin) {
-      throw new Error("This api protected and you can't access it !!");
-    }
-
-    connectToDB();
-    const body = await req.json();
-    const { id } = body;
-    // Validation (You)
-
-    await CommentModel.findOneAndUpdate(
-      { _id: id },
-      {
-        $set: {
-          isAccept: true,
-        },
-      }
-    );
-    return Response.json({ message: "Comment accepted successfully :))" });
+    await connectToDB();
+    const admin = await authAdmin();
+    if (!admin) return Response.json({ message: "Forbidden" }, { status: 403 });
+    const { id } = await req.json();
+    if (!isValidObjectId(id)) return Response.json({ message: "Invalid comment id" }, { status: 400 });
+    const comment = await CommentModel.findByIdAndUpdate(id, { $set: { isAccept: true } });
+    if (!comment) return Response.json({ message: "Comment not found" }, { status: 404 });
+    return Response.json({ message: "Comment accepted successfully" });
   } catch (err) {
-    return Response.json({ message: err.message }, { status: 500 });
+    return Response.json({ message: err.message || "Comment update failed" }, { status: 500 });
   }
 }

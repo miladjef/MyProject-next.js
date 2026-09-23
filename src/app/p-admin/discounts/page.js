@@ -4,9 +4,13 @@ import styles from "@/components/templates/p-admin/discounts/table.module.css";
 import connectToDB from "@/configs/db";
 import DiscountModel from "@/models/Discount";
 import AddDiscount from "@/components/templates/p-admin/discounts/AddDiscount";
+import { authAdmin } from "@/utils/serverHelpers";
+import { redirect } from "next/navigation";
 
 const Discounts = async () => {
-  connectToDB();
+  const admin = await authAdmin();
+  if (!admin) redirect("/login-register");
+  await connectToDB();
   const discounts = await DiscountModel.find({}).sort({ _id: -1 }).lean();
 
   return (

@@ -1,19 +1,16 @@
 import styles from "./answer.module.css";
 
-const Answer = ({ type, title, body, createdAt, user }) => {
-  console.log(type, title);
+const Answer = ({ type, body, createdAt, user }) => {
   return (
-    <section
-      className={type == "user" ? styles.userTicket : styles.adminticket}
-    >
+    <section className={type === "user" ? styles.userTicket : styles.adminticket}>
       <div className={styles.ticket_main}>
-        <p>{new Date(createdAt).toLocaleDateString("fa-IR")} </p>
+        <p>{new Date(createdAt).toLocaleDateString("fa-IR")}</p>
         <div>
           <div>
-            <p>{user.name}</p>
+            <p>{user?.name || (type === "user" ? "کاربر" : "مدیر")}</p>
             <span>{type === "user" ? "کاربر" : "مدیر"}</span>
           </div>
-          <img src="/images/shahin.jpg" alt="" />
+          <img src="/images/logo.png" alt="" />
         </div>
       </div>
       <div className={styles.ticket_text}>

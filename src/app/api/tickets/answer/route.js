@@ -1,41 +1,48 @@
 import connectToDB from "@/configs/db";
 import TicketModel from "@/models/Ticket";
 import { authUser } from "@/utils/serverHelpers";
+import { isValidObjectId } from "mongoose";
 
 export async function POST(req) {
   try {
-    connectToDB();
-    const reqBody = await req.json();
-    const { title, body, department, subDepartment, priority, ticketID } =
-      reqBody;
-    const user = await authUser();
+    await connectToDB();
+    const actor = await authUser();
+    if (!actor) return Response.json({ message: "Unauthorized" }, { status: 401 });
 
-    await TicketModel.findOneAndUpdate(
-      { _id: ticketID },
-      {
-        $set: {
-          hasAnswer: true,
-        },
-      }
-    );
+    const { body, ticketID } = await req.json();
+    const cleanBody = String(body || "").trim();
+    if (!cleanBody || !isValidObjectId(ticketID)) {
+      return Response.json({ message: "Invalid answer data" }, { status: 400 });
+    }
+
+    const mainTicket = await TicketModel.findOne({ _id: ticketID, isAnswer: false });
+    if (!mainTicket) return Response.json({ message: "Ticket not found" }, { status: 404 });
+
+    const isOwner = String(mainTicket.user) === String(actor._id);
+    const isAdmin = actor.role === "ADMIN";
+    if (!isAdmin && !isOwner) {
+      return Response.json({ message: "Forbidden" }, { status: 403 });
+    }
 
     await TicketModel.create({
-      title,
-      body,
-      department,
-      subDepartment,
-      priority,
-      user: user._id,
+      title: mainTicket.title,
+      body: cleanBody,
+      department: mainTicket.department,
+      subDepartment: mainTicket.subDepartment,
+      priority: mainTicket.priority,
+      user: actor._id,
       hasAnswer: false,
       isAnswer: true,
-      mainTicket: ticketID,
+      mainTicket: mainTicket._id,
     });
 
-    return Response.json(
-      { message: "Answer saved successfully :))" },
-      { status: 201 }
-    );
+    if (isAdmin) {
+      mainTicket.hasAnswer = true;
+      await mainTicket.save();
+    }
+
+    return Response.json({ message: "Answer saved successfully" }, { status: 201 });
   } catch (err) {
-    return Response.json({ message: err }, { status: 500 });
+    return Response.json({ message: err.message || "Answer creation failed" }, { status: 500 });
   }
 }

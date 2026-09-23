@@ -1,55 +1,40 @@
 import { hash, compare } from "bcryptjs";
 import { sign, verify } from "jsonwebtoken";
+export {
+  valiadteEmail,
+  valiadtePhone,
+  valiadtePassword,
+} from "./validation";
 
-const hashPassword = async (password) => {
-  const hashedPassword = await hash(password, 12);
-  return hashedPassword;
+const getRequiredSecret = (key) => {
+  const secret = process.env[key];
+  if (!secret) {
+    throw new Error(`${key} is not configured`);
+  }
+  return secret;
 };
 
-const verifyPassword = async (password, hashedPassword) => {
-  const isValid = await compare(password, hashedPassword);
-  return isValid;
-};
+const hashPassword = async (password) => hash(password, 12);
+const verifyPassword = async (password, hashedPassword) =>
+  compare(password, hashedPassword);
 
-const generateAccessToken = (data) => {
-  const token = sign({ ...data }, process.env.AccessTokenSecretKey, {
-    expiresIn: "60d",
+const generateAccessToken = (data) =>
+  sign({ ...data }, getRequiredSecret("AccessTokenSecretKey"), {
+    expiresIn: "7d",
   });
-  return token;
-};
 
 const verifyAccessToken = (token) => {
   try {
-    const tokenPayload = verify(token, process.env.AccessTokenSecretKey);
-    return tokenPayload;
-  } catch (err) {
-    console.log("Verify Access Token Error ->", err);
+    return verify(token, getRequiredSecret("AccessTokenSecretKey"));
+  } catch {
     return false;
   }
 };
 
-const generateRefreshToken = (data) => {
-  const token = sign({ ...data }, process.env.RefreshTokenSecretKey, {
-    expiresIn: "15d",
+const generateRefreshToken = (data) =>
+  sign({ ...data }, getRequiredSecret("RefreshTokenSecretKey"), {
+    expiresIn: "30d",
   });
-  return token;
-};
-
-const valiadteEmail = (email) => {
-  const pattern = /[^@ \t\r\n]+@[^@ \t\r\n]+\.[^@ \t\r\n]+/g;
-  return pattern.test(email);
-};
-
-const valiadtePhone = (phone) => {
-  const pattern = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/g;
-  return pattern.test(phone);
-};
-
-const valiadtePassword = (password) => {
-  const pattern =
-    /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$ %^&*-]).{8,}$/g;
-  return pattern.test(password);
-};
 
 export {
   hashPassword,
@@ -57,7 +42,4 @@ export {
   generateAccessToken,
   verifyAccessToken,
   generateRefreshToken,
-  valiadteEmail,
-  valiadtePhone,
-  valiadtePassword,
 };

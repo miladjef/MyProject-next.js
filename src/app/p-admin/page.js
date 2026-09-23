@@ -11,21 +11,27 @@ import CommentModel from "@/models/Comment";
 import UserModel from "@/models/User";
 import ProductModel from "@/models/Product";
 import connectToDB from "@/configs/db";
+import { authAdmin } from "@/utils/serverHelpers";
+import { redirect } from "next/navigation";
 
 async function AdminHomePage() {
-  connectToDB();
-  const tickets = await TicketModel.find({}).lean();
-  const users = await UserModel.find({}).lean();
-  const products = await ProductModel.find({}).lean();
+  const admin = await authAdmin();
+  if (!admin) redirect("/login-register");
+  await connectToDB();
+  const [ticketCount, userCount, productCount] = await Promise.all([
+    TicketModel.countDocuments({}),
+    UserModel.countDocuments({}),
+    ProductModel.countDocuments({}),
+  ]);
 
   return (
     <AdminPanelLayout>
       <main>
         <section className={styles.dashboard_contents}>
-          <Box title="مجموع تیکت های دریافتی" value={tickets.length} />
-          <Box title="مجموع محصولات سایت" value={products.length} />
+          <Box title="مجموع تیکت های دریافتی" value={ticketCount} />
+          <Box title="مجموع محصولات سایت" value={productCount} />
           <Box title="مجموع سفارشات" value="333" />
-          <Box title="مجموع کاربر های سایت" value={users.length} />
+          <Box title="مجموع کاربر های سایت" value={userCount} />
         </section>{" "}
         <div className={styles.dashboard_charts}>
           <section>
