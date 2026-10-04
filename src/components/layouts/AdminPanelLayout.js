@@ -1,2 +1,24 @@
-import styles from "./adminPanelLayout.module.css"; import Sidebar from "@/components/modules/p-admin/Sidebar"; import Topbar from "@/components/modules/p-admin/Topbor"; import { redirect } from "next/navigation"; import { authAdmin } from "@/utils/serverHelpers";
-const Layout=async({children})=>{const user=await authAdmin();if(!user)redirect("/login-register");const info={name:user.name||"مدیر",role:user.role};return <div className={styles.layout}><section className={styles.section}><Sidebar user={info}/><div className={styles.contents}><Topbar user={info}/>{children}</div></section></div>};export default Layout;
+import styles from "./adminPanelLayout.module.css";
+import Sidebar from "@/components/modules/p-admin/Sidebar";
+import Topbar from "@/components/modules/p-admin/Topbor";
+import { redirect } from "next/navigation";
+import { authAdmin } from "@/utils/serverHelpers";
+
+const Layout = async ({ children, user: providedUser = null }) => {
+  const user = providedUser || (await authAdmin());
+  if (!user) redirect("/login-register");
+  const info = { name: user.name || "مدیر", role: user.role };
+  return (
+    <div className={styles.layout}>
+      <section className={styles.section}>
+        <Sidebar user={info} />
+        <div className={styles.contents}>
+          <Topbar user={info} />
+          {children}
+        </div>
+      </section>
+    </div>
+  );
+};
+
+export default Layout;

@@ -17,7 +17,7 @@ const page = async () => {
 
 
   return (
-    <Layout>
+    <Layout user={user}>
       <main>
         <DataTable
           comments={JSON.parse(JSON.stringify(comments))}

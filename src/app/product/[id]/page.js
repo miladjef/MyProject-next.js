@@ -10,6 +10,7 @@ import Navbar from "@/components/modules/navbar/Navbar";
 import { authUser } from "@/utils/serverHelpers";
 import ProductModel from "@/models/Product";
 import connectToDB from "@/configs/db";
+import { activeProductFilter } from "@/utils/productFilters";
 
 const ProductPage = async ({ params }) => {
   const { id } = await params;
@@ -18,8 +19,12 @@ const ProductPage = async ({ params }) => {
   await connectToDB();
   const [user, product] = await Promise.all([
     authUser(),
-    ProductModel.findById(id)
-      .populate({ path: "comments", match: { isAccept: true } })
+    ProductModel.findOne({ _id: id, ...activeProductFilter })
+      .populate({
+        path: "comments",
+        match: { isAccept: true },
+        select: "username body score date adminReply isAccept createdAt",
+      })
       .lean(),
   ]);
 
@@ -28,6 +33,7 @@ const ProductPage = async ({ params }) => {
   const related = await ProductModel.find({
     _id: { $ne: product._id },
     smell: product.smell,
+    ...activeProductFilter,
   })
     .limit(8)
     .lean();
@@ -38,7 +44,7 @@ const ProductPage = async ({ params }) => {
       <div data-aos="fade-up" className={styles.contents}>
         <div className={styles.main}>
           <Details product={JSON.parse(JSON.stringify(product))} />
-          <Gallery />
+          <Gallery product={JSON.parse(JSON.stringify(product))} />
         </div>
         <Tabs product={JSON.parse(JSON.stringify(product))} />
         <MoreProducts relatedProducts={JSON.parse(JSON.stringify(related))} />

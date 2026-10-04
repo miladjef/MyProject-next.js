@@ -16,6 +16,7 @@ export async function POST(req) {
     await SubDepartmentModel.create({ title: cleanTitle, department });
     return Response.json({ message: "SubDepartment created successfully" }, { status: 201 });
   } catch (err) {
+    if (err?.code === 11000) return Response.json({ message: "SubDepartment already exists" }, { status: 409 });
     return Response.json({ message: err.message || "SubDepartment creation failed" }, { status: 500 });
   }
 }

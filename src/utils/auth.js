@@ -8,9 +8,7 @@ export {
 
 const getRequiredSecret = (key) => {
   const secret = process.env[key];
-  if (!secret) {
-    throw new Error(`${key} is not configured`);
-  }
+  if (!secret || secret.length < 32) throw new Error(`${key} must be configured with at least 32 characters`);
   return secret;
 };
 
@@ -20,7 +18,7 @@ const verifyPassword = async (password, hashedPassword) =>
 
 const generateAccessToken = (data) =>
   sign({ ...data }, getRequiredSecret("AccessTokenSecretKey"), {
-    expiresIn: "7d",
+    expiresIn: "2h",
   });
 
 const verifyAccessToken = (token) => {
@@ -31,15 +29,9 @@ const verifyAccessToken = (token) => {
   }
 };
 
-const generateRefreshToken = (data) =>
-  sign({ ...data }, getRequiredSecret("RefreshTokenSecretKey"), {
-    expiresIn: "30d",
-  });
-
 export {
   hashPassword,
   verifyPassword,
   generateAccessToken,
   verifyAccessToken,
-  generateRefreshToken,
 };

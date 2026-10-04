@@ -1,52 +1,15 @@
-import {
-  FaEnvelopeOpenText,
-  FaInternetExplorer,
-  FaPhone,
-  FaTelegramPlane,
-} from "react-icons/fa";
+import { FaEnvelopeOpenText, FaInternetExplorer, FaPhone, FaTelegramPlane } from "react-icons/fa";
 import styles from "./information.module.css";
 import { PiCoffeeFill } from "react-icons/pi";
 import { BiSolidContact } from "react-icons/bi";
 
 const Information = () => {
-  return (
-    <section className={styles.Information}>
-      <span>تماس با ما</span>
-      <p>اطلاعات تماس</p>
-      <div>
-        <PiCoffeeFill />
-        <p>شرکت فنجان داغ خوارزمی (کارخانه قهوه ست )</p>
-      </div>
-      <div>
-        <FaInternetExplorer />
-        <p>set-coffee.com</p>
-      </div>
-      <div>
-        <BiSolidContact />
-        <p>
-          {" "}
-          تهران. پاکدشت . شهرک صنعتی خوارزمی. فاز 2 . بلوار بهارستان. خیابان
-          ماگنولیا بلوک آ117{" "}
-        </p>
-      </div>
-      <div>
-        <FaPhone />
-        <p>021-36479228</p>
-      </div>
-      <div>
-        <FaEnvelopeOpenText />
-        <p>offee[at]set-coffee.com</p>
-      </div>
-      <div>
-        <FaEnvelopeOpenText />
-        <p>whole[at]set-coffee.com</p>
-      </div>
-      <div>
-        <FaTelegramPlane />
-        <p>تماس با مدیریت از طریق واتساپ و یا تلگرام : 09366726563</p>
-      </div>
-    </section>
-  );
+  const siteName = process.env.SITE_NAME || "فروشگاه قهوه";
+  const siteUrl = process.env.SITE_URL || "";
+  const siteAddress = process.env.SITE_ADDRESS || "";
+  const sitePhone = process.env.SITE_PHONE || "";
+  const siteEmail = process.env.SITE_EMAIL || "";
+  const siteSocial = process.env.SITE_SOCIAL || "";
+  return <section className={styles.Information}><span>تماس با ما</span><p>اطلاعات تماس</p><div><PiCoffeeFill/><p>{siteName}</p></div>{siteUrl&&<div><FaInternetExplorer/><p>{siteUrl}</p></div>}{siteAddress&&<div><BiSolidContact/><p>{siteAddress}</p></div>}{sitePhone&&<div><FaPhone/><p>{sitePhone}</p></div>}{siteEmail&&<div><FaEnvelopeOpenText/><p>{siteEmail}</p></div>}{siteSocial&&<div><FaTelegramPlane/><p>{siteSocial}</p></div>}</section>;
 };
-
 export default Information;

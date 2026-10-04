@@ -33,7 +33,7 @@ const Page = async ({ params }) => {
     .lean();
 
   return (
-    <Layout>
+    <Layout user={user}>
       <main className={styles.container}>
         <h1 className={styles.title}>
           <span>{ticket.title}</span>

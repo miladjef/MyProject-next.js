@@ -1,2 +1,166 @@
-"use client";import Link from "next/link";import styles from "./table.module.css";import totalStyles from "./totals.module.css";import {IoMdClose} from "react-icons/io";import {useEffect,useMemo,useState} from "react";import stateData from "@/utils/stateData";import Select from "react-select";import {showSwal} from "@/utils/helpers";const stateOptions=stateData();
-const Table=()=>{const[cart,setCart]=useState([]),[discount,setDiscount]=useState(""),[percent,setPercent]=useState(0),[state,setState]=useState(null),[changeAddress,setChangeAddress]=useState(false);useEffect(()=>{try{const c=JSON.parse(localStorage.getItem("cart")||"[]");setCart(Array.isArray(c)?c.filter(i=>i?.id&&Number(i.count)>0):[]);}catch{localStorage.removeItem("cart");}},[]);const subtotal=useMemo(()=>cart.reduce((s,i)=>s+Number(i.price||0)*Number(i.count||0),0),[cart]),total=Math.max(0,subtotal-subtotal*percent/100);const save=c=>{setCart(c);localStorage.setItem("cart",JSON.stringify(c));};const count=(id,d)=>save(cart.map(i=>i.id===id?{...i,count:Math.max(1,Number(i.count)+d)}:i));const remove=id=>save(cart.filter(i=>i.id!==id));const coupon=async()=>{if(!discount.trim())return showSwal("کد تخفیف را وارد کنید","error","فهمیدم");if(percent)return showSwal("یک کد تخفیف اعمال شده است","error","فهمیدم");const r=await fetch("/api/discounts/use",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:discount})});if(r.status===404)return showSwal("کد معتبر نیست","error","تلاش مجدد");if(r.status===422)return showSwal("ظرفیت کد تمام شده است","error","تلاش مجدد");if(r.ok){const d=await r.json();setPercent(Number(d.percent)||0);return showSwal("کد تخفیف اعمال شد","success","فهمیدم");}showSwal("بررسی کد انجام نشد","error","تلاش مجدد");};return <><div className={styles.tabel_container}><table className={styles.table}><thead><tr><th>جمع جزء</th><th>تعداد</th><th>قیمت</th><th>محصول</th><th></th></tr></thead><tbody>{cart.map(i=><tr key={i.id}><td>{(i.count*i.price).toLocaleString()} تومان</td><td className={styles.counter}><div><button type="button" onClick={()=>count(i.id,-1)}>-</button><p>{i.count}</p><button type="button" onClick={()=>count(i.id,1)}>+</button></div></td><td className={styles.price}>{Number(i.price).toLocaleString()} تومان</td><td className={styles.product}>{i.img&&<img src={i.img} alt={i.name}/>}<Link href={`/product/${i.id}`}>{i.name}</Link></td><td><button type="button" onClick={()=>remove(i.id)} aria-label="حذف"><IoMdClose className={styles.delete_icon}/></button></td></tr>)}</tbody></table><section><div><button className={styles.set_off_btn} onClick={coupon}>اعمال کوپن</button><input value={discount} onChange={e=>setDiscount(e.target.value)} placeholder="کد تخفیف"/></div></section></div><div className={totalStyles.totals}><p className={totalStyles.totals_title}>جمع کل سبد خرید</p><div className={totalStyles.subtotal}><p>جمع جزء</p><p>{subtotal.toLocaleString()} تومان</p></div>{percent>0&&<div className={totalStyles.subtotal}><p>تخفیف</p><p>{percent} درصد</p></div>}<p className={totalStyles.motor}>پیک موتوری: <strong>30,000</strong></p><p onClick={()=>setChangeAddress(v=>!v)} className={totalStyles.change_address}>تغییر آدرس</p>{changeAddress&&<div className={totalStyles.address_details}><Select value={state} onChange={setState} isClearable placeholder="استان" isRtl isSearchable options={stateOptions}/><input placeholder="شهر"/><input placeholder="کد پستی"/><button onClick={()=>setChangeAddress(false)}>بروزرسانی</button></div>}<div className={totalStyles.total}><p>مجموع</p><p>{total.toLocaleString()} تومان</p></div><Link href="/checkout"><button className={totalStyles.checkout_btn}>ادامه جهت تسویه حساب</button></Link></div></>};export default Table;
+"use client";
+
+import Link from "next/link";
+import styles from "./table.module.css";
+import totalStyles from "./totals.module.css";
+import { IoMdClose } from "react-icons/io";
+import { useEffect, useMemo, useState } from "react";
+import { showSwal } from "@/utils/helpers";
+
+const normalizeCart = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => item?.id && Number(item.count) > 0)
+    .map((item) => ({ ...item, count: Math.max(1, Math.min(99, Number(item.count) || 1)) }));
+};
+
+const Table = () => {
+  const [cart, setCart] = useState([]);
+  const [couponCode, setCouponCode] = useState("");
+  const [quote, setQuote] = useState(null);
+  const [loadingQuote, setLoadingQuote] = useState(false);
+
+  const localSubtotal = useMemo(
+    () => cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.count || 0), 0),
+    [cart]
+  );
+
+  const fetchQuote = async (items, coupon = "") => {
+    if (!items.length) {
+      setQuote(null);
+      return null;
+    }
+    setLoadingQuote(true);
+    try {
+      const res = await fetch("/api/checkout/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map((item) => ({ id: item.id, count: item.count })),
+          couponCode: coupon,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "بررسی سبد خرید انجام نشد");
+
+      const refreshedCart = data.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        img: item.img,
+        count: item.count,
+      }));
+      setCart(refreshedCart);
+      localStorage.setItem("cart", JSON.stringify(refreshedCart));
+      setQuote(data);
+      window.dispatchEvent(new Event("cart-updated"));
+      return data;
+    } finally {
+      setLoadingQuote(false);
+    }
+  };
+
+  useEffect(() => {
+    try {
+      const currentCart = normalizeCart(JSON.parse(localStorage.getItem("cart") || "[]"));
+      const savedCoupon = String(localStorage.getItem("checkoutCoupon") || "").trim().toUpperCase();
+      setCart(currentCart);
+      setCouponCode(savedCoupon);
+      if (currentCart.length) {
+        fetchQuote(currentCart, savedCoupon).catch(() => {
+          localStorage.removeItem("checkoutCoupon");
+          setCouponCode("");
+        });
+      }
+    } catch {
+      localStorage.removeItem("cart");
+      localStorage.removeItem("checkoutCoupon");
+    }
+  }, []);
+
+  const save = async (nextCart, keepCoupon = true) => {
+    const normalized = normalizeCart(nextCart);
+    setCart(normalized);
+    localStorage.setItem("cart", JSON.stringify(normalized));
+    window.dispatchEvent(new Event("cart-updated"));
+    const coupon = keepCoupon ? couponCode.trim().toUpperCase() : "";
+    if (!keepCoupon) {
+      setCouponCode("");
+      localStorage.removeItem("checkoutCoupon");
+    }
+    try {
+      await fetchQuote(normalized, coupon);
+    } catch (error) {
+      if (coupon) {
+        setCouponCode("");
+        localStorage.removeItem("checkoutCoupon");
+        await fetchQuote(normalized, "").catch(() => setQuote(null));
+      } else {
+        setQuote(null);
+      }
+      showSwal(error.message || "سبد خرید به روز نشد", "error", "فهمیدم");
+    }
+  };
+
+  const changeCount = (id, delta) => {
+    const next = cart.map((item) =>
+      item.id === id ? { ...item, count: Math.max(1, Math.min(99, item.count + delta)) } : item
+    );
+    save(next);
+  };
+
+  const remove = (id) => save(cart.filter((item) => item.id !== id));
+
+  const applyCoupon = async () => {
+    const code = couponCode.trim().toUpperCase();
+    if (!code) return showSwal("کد تخفیف را وارد کنید", "error", "فهمیدم");
+    try {
+      const data = await fetchQuote(cart, code);
+      setCouponCode(code);
+      localStorage.setItem("checkoutCoupon", code);
+      showSwal(`کد تخفیف ${data.discountPercent} درصدی اعمال شد`, "success", "فهمیدم");
+    } catch (error) {
+      localStorage.removeItem("checkoutCoupon");
+      setQuote(null);
+      showSwal(error.message || "کد تخفیف معتبر نیست", "error", "تلاش مجدد");
+    }
+  };
+
+  const subtotal = quote?.subtotal ?? localSubtotal;
+  const shippingCost = quote?.shippingCost ?? (cart.length ? 30000 : 0);
+  const total = quote?.total ?? subtotal + shippingCost;
+
+  return (
+    <>
+      <div className={styles.tabel_container}>
+        <table className={styles.table}>
+          <thead><tr><th>جمع جزء</th><th>تعداد</th><th>قیمت</th><th>محصول</th><th></th></tr></thead>
+          <tbody>
+            {cart.map((item) => (
+              <tr key={item.id}>
+                <td>{(item.count * item.price).toLocaleString()} تومان</td>
+                <td className={styles.counter}><div><button type="button" onClick={() => changeCount(item.id, -1)}>-</button><p>{item.count}</p><button type="button" onClick={() => changeCount(item.id, 1)}>+</button></div></td>
+                <td className={styles.price}>{Number(item.price).toLocaleString()} تومان</td>
+                <td className={styles.product}>{item.img && <img src={item.img} alt={item.name} />}<Link href={`/product/${item.id}`}>{item.name}</Link></td>
+                <td><button type="button" onClick={() => remove(item.id)} aria-label="حذف"><IoMdClose className={styles.delete_icon} /></button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!cart.length && <p style={{ padding: 24, textAlign: "center" }}>سبد خرید خالی است.</p>}
+        <section><div><button className={styles.set_off_btn} type="button" onClick={applyCoupon} disabled={!cart.length || loadingQuote}>{loadingQuote ? "در حال بررسی" : "اعمال کوپن"}</button><input value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="کد تخفیف" /></div></section>
+      </div>
+
+      <div className={totalStyles.totals}>
+        <p className={totalStyles.totals_title}>جمع کل سبد خرید</p>
+        <div className={totalStyles.subtotal}><p>جمع جزء</p><p>{subtotal.toLocaleString()} تومان</p></div>
+        {quote?.discountAmount > 0 && <div className={totalStyles.subtotal}><p>تخفیف</p><p>{quote.discountAmount.toLocaleString()} تومان</p></div>}
+        <p className={totalStyles.motor}>هزینه ارسال: <strong>{shippingCost.toLocaleString()} تومان</strong></p>
+        <div className={totalStyles.total}><p>مجموع</p><p>{total.toLocaleString()} تومان</p></div>
+        {cart.length ? <Link href="/checkout"><button className={totalStyles.checkout_btn}>ادامه جهت تسویه حساب</button></Link> : <Link href="/category"><button className={totalStyles.checkout_btn}>بازگشت به فروشگاه</button></Link>}
+      </div>
+    </>
+  );
+};
+
+export default Table;

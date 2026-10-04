@@ -1,8 +1,4 @@
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyPassword,
-} from "@/utils/auth";
+import { generateAccessToken, verifyPassword } from "@/utils/auth";
 import {
   normalizeEmail,
   normalizePhone,
@@ -12,14 +8,19 @@ import {
 import UserModel from "@/models/User";
 import BanModel from "@/models/Ban";
 import connectToDB from "@/configs/db";
+import { getRequestIp, rateLimit, rateLimitResponse } from "@/utils/rateLimit";
 
 const cookie = (token) =>
-  `token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800${
+  `token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7200${
     process.env.NODE_ENV === "production" ? "; Secure" : ""
   }`;
 
 export async function POST(req) {
   try {
+    const ip = getRequestIp(req);
+    const limited = await rateLimit({ key: `signin:${ip}`, limit: 12, windowMs: 15 * 60_000 });
+    if (!limited.allowed) return rateLimitResponse(limited.retryAfter);
+
     await connectToDB();
     const { email, identifier, password } = await req.json();
     const rawIdentifier = String(identifier || email || "").trim();
@@ -28,51 +29,31 @@ export async function POST(req) {
     }
 
     let query;
-    if (valiadteEmail(rawIdentifier)) {
-      query = { email: normalizeEmail(rawIdentifier) };
-    } else if (valiadtePhone(rawIdentifier)) {
-      query = { phone: normalizePhone(rawIdentifier) };
-    } else {
-      return Response.json({ message: "Invalid credentials" }, { status: 400 });
-    }
+    if (valiadteEmail(rawIdentifier)) query = { email: normalizeEmail(rawIdentifier) };
+    else if (valiadtePhone(rawIdentifier)) query = { phone: normalizePhone(rawIdentifier) };
+    else return Response.json({ message: "Invalid credentials" }, { status: 400 });
 
-    const user = await UserModel.findOne(query);
-    if (!user?.password) {
-      return Response.json({ message: "Invalid credentials" }, { status: 401 });
-    }
+    const user = await UserModel.findOne(query).select("+password +tokenVersion");
+    if (!user?.password) return Response.json({ message: "Invalid credentials" }, { status: 401 });
 
-    const banned = await BanModel.findOne({
+    const banned = await BanModel.exists({
       $or: [
         ...(user.email ? [{ email: user.email }] : []),
-        { phone: user.phone },
+        ...(user.phone ? [{ phone: user.phone }] : []),
       ],
     });
-    if (banned) {
-      return Response.json({ message: "Account is blocked" }, { status: 403 });
-    }
+    if (banned) return Response.json({ message: "Account is blocked" }, { status: 403 });
 
-    const isCorrect = await verifyPassword(password, user.password);
-    if (!isCorrect) {
+    if (!(await verifyPassword(password, user.password))) {
       return Response.json({ message: "Invalid credentials" }, { status: 401 });
     }
 
-    const payload = {
-      userId: String(user._id),
-      email: user.email,
-      role: user.role,
-    };
-    const accessToken = generateAccessToken(payload);
-    user.refreshToken = generateRefreshToken(payload);
-    await user.save();
-
+    const accessToken = generateAccessToken({ userId: String(user._id), role: user.role, tokenVersion: Number(user.tokenVersion || 0) });
     return Response.json(
       { message: "User logged in successfully" },
       { status: 200, headers: { "Set-Cookie": cookie(accessToken) } }
     );
   } catch (err) {
-    return Response.json(
-      { message: err.message || "Login failed" },
-      { status: 500 }
-    );
+    return Response.json({ message: err.message || "Login failed" }, { status: 500 });
   }
 }

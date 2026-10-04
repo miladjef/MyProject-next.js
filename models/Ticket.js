@@ -10,6 +10,9 @@ const schema = new mongoose.Schema({
   hasAnswer: { type: Boolean, default: false },
   isAnswer: { type: Boolean, default: false },
   mainTicket: { type: mongoose.Types.ObjectId, ref: "Ticket" },
+  attachment: { type: String, default: "" },
 }, { timestamps: true });
+schema.index({ user: 1, createdAt: -1 });
+schema.index({ isAnswer: 1, createdAt: -1 });
 const model = mongoose.models.Ticket || mongoose.model("Ticket", schema);
 export default model;

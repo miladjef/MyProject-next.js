@@ -1,2 +1,24 @@
-import styles from "./userPanelLayout.module.css"; import Sidebar from "@/components/modules/p-user/Sidebar"; import Topbar from "@/components/modules/p-user/Topbar"; import { authUser } from "@/utils/serverHelpers"; import { redirect } from "next/navigation";
-const Layout=async({children})=>{const user=await authUser();if(!user)redirect("/login-register");const info={name:user.name||"کاربر",role:user.role};return <div className={styles.layout}><section className={styles.section}><Sidebar user={info}/><div className={styles.contents}><Topbar user={info}/>{children}</div></section></div>};export default Layout;
+import styles from "./userPanelLayout.module.css";
+import Sidebar from "@/components/modules/p-user/Sidebar";
+import Topbar from "@/components/modules/p-user/Topbar";
+import { authUser } from "@/utils/serverHelpers";
+import { redirect } from "next/navigation";
+
+const Layout = async ({ children, user: providedUser = null }) => {
+  const user = providedUser || (await authUser());
+  if (!user) redirect("/login-register");
+  const info = { name: user.name || "کاربر", role: user.role };
+  return (
+    <div className={styles.layout}>
+      <section className={styles.section}>
+        <Sidebar user={info} />
+        <div className={styles.contents}>
+          <Topbar user={info} />
+          {children}
+        </div>
+      </section>
+    </div>
+  );
+};
+
+export default Layout;

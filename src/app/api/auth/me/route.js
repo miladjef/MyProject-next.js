@@ -8,7 +8,7 @@ export async function GET() {
 
   const safeUser = user.toObject();
   delete safeUser.password;
-  delete safeUser.refreshToken;
+  delete safeUser.tokenVersion;
   delete safeUser.__v;
   return Response.json(safeUser);
 }

@@ -13,7 +13,6 @@ const Form = () => {
   const submitMessage = async (event) => {
     event.preventDefault();
 
-    // Validation (You)
 
     const contact = {
       name,
@@ -39,7 +38,6 @@ const Form = () => {
       setMessage("");
       showSwal("پیغام شما با موفقیت ثبت شد", "success", "فهمیدم");
     }
-    console.log("Res ->", res);
   };
 
   return (

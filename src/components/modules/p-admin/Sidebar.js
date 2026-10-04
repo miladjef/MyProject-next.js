@@ -84,6 +84,10 @@ const Sidebar = ({ user }) => {
               <FaUsers />
               کاربران
             </Link>
+            <Link href={"/p-admin/orders"}>
+              <FaShoppingBag />
+              سفارش ها
+            </Link>
             <Link href={"/p-admin/comments"}>
               <FaComments />
               کامنت ها
@@ -96,6 +100,10 @@ const Sidebar = ({ user }) => {
             <Link href={"/p-admin/discounts"}>
               <MdOutlineAttachMoney />
               تخفیفات
+            </Link>
+            <Link href={"/p-admin/articles"}>
+              <FaComments />
+              مقالات
             </Link>
           </>
         )}

@@ -2,11 +2,7 @@ const mongoose = require("mongoose");
 
 const schema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      trim: true,
-      default: "کاربر",
-    },
+    name: { type: String, trim: true, default: "کاربر", maxlength: 120 },
     email: {
       type: String,
       trim: true,
@@ -15,6 +11,7 @@ const schema = new mongoose.Schema(
       unique: true,
       sparse: true,
       index: true,
+      maxlength: 254,
     },
     phone: {
       type: String,
@@ -22,17 +19,14 @@ const schema = new mongoose.Schema(
       required: true,
       unique: true,
       index: true,
+      maxlength: 20,
     },
-    password: {
-      type: String,
-      required: false,
-    },
-    role: {
-      type: String,
-      enum: ["USER", "ADMIN"],
-      default: "USER",
-    },
-    refreshToken: String,
+    password: { type: String, required: false, select: false },
+    role: { type: String, enum: ["USER", "ADMIN"], default: "USER", index: true },
+    tokenVersion: { type: Number, default: 0, min: 0, select: false },
+    avatar: { type: String, default: "" },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

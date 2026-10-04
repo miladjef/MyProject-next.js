@@ -4,19 +4,26 @@ import ProductModel from "@/models/Product";
 import { isValidObjectId } from "mongoose";
 import { valiadteEmail, normalizeEmail } from "@/utils/validation";
 import { authUser } from "@/utils/serverHelpers";
+import { getRequestIp, rateLimit, rateLimitResponse } from "@/utils/rateLimit";
+import { activeProductFilter } from "@/utils/productFilters";
 
 export async function POST(req) {
   try {
+    const ip = getRequestIp(req);
+    const limited = await rateLimit({ key: `comment:${ip}`, limit: 10, windowMs: 60 * 60_000 });
+    if (!limited.allowed) return rateLimitResponse(limited.retryAfter);
     await connectToDB();
     const { username, body, email, score, productID } = await req.json();
     const cleanUsername = String(username || "").trim();
     const cleanBody = String(body || "").trim();
     const cleanEmail = normalizeEmail(email);
     const numericScore = Number(score);
-    if (!cleanUsername || !cleanBody || !valiadteEmail(cleanEmail) || !isValidObjectId(productID) || !Number.isInteger(numericScore) || numericScore < 1 || numericScore > 5) {
+    if (!cleanUsername || cleanUsername.length > 120 || !cleanBody || cleanBody.length > 3000 || !valiadteEmail(cleanEmail) || !isValidObjectId(productID) || !Number.isInteger(numericScore) || numericScore < 1 || numericScore > 5) {
       return Response.json({ message: "Invalid comment data" }, { status: 400 });
     }
-    if (!(await ProductModel.exists({ _id: productID }))) return Response.json({ message: "Product not found" }, { status: 404 });
+    if (!(await ProductModel.exists({ _id: productID, ...activeProductFilter }))) {
+      return Response.json({ message: "Product not found" }, { status: 404 });
+    }
 
     const actor = await authUser();
     const comment = await CommentModel.create({

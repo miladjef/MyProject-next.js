@@ -13,6 +13,7 @@ export async function POST(req) {
     await DepartmentModel.create({ title: cleanTitle });
     return Response.json({ message: "Department created successfully" }, { status: 201 });
   } catch (err) {
+    if (err?.code === 11000) return Response.json({ message: "Department already exists" }, { status: 409 });
     return Response.json({ message: err.message || "Department creation failed" }, { status: 500 });
   }
 }

@@ -8,6 +8,9 @@ const schema = new mongoose.Schema({
   date: { type: Date, default: Date.now },
   productID: { type: mongoose.Types.ObjectId, ref: "Product", required: true },
   user: { type: mongoose.Types.ObjectId, ref: "User" },
+  adminReply: { type: String, default: "", trim: true, maxlength: 3000 },
 }, { timestamps: true });
+schema.index({ productID: 1, isAccept: 1, createdAt: -1 });
+schema.index({ user: 1, createdAt: -1 });
 const model = mongoose.models.Comment || mongoose.model("Comment", schema);
 export default model;

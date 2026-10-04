@@ -15,9 +15,10 @@ export async function PUT(req) {
       return Response.json({ message: "You cannot change your own role" }, { status: 409 });
     }
 
-    const user = await UserModel.findById(id);
+    const user = await UserModel.findById(id).select("+tokenVersion");
     if (!user) return Response.json({ message: "User not found" }, { status: 404 });
     user.role = user.role === "USER" ? "ADMIN" : "USER";
+    user.tokenVersion = Number(user.tokenVersion || 0) + 1;
     await user.save();
     return Response.json({ message: "User role updated successfully" });
   } catch (err) {

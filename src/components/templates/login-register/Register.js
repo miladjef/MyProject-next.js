@@ -1,6 +1,125 @@
 "use client";
-import {useState} from "react";import styles from "./register.module.css";import Sms from "./Sms";import swal from "sweetalert";import {showSwal} from "@/utils/helpers";import {valiadteEmail,valiadtePassword,valiadtePhone} from "@/utils/validation";import {useRouter} from "next/navigation";
-const Register=({showloginForm})=>{const router=useRouter();const[withPass,setWithPass]=useState(false),[otp,setOtp]=useState(false),[name,setName]=useState(""),[phone,setPhone]=useState(""),[email,setEmail]=useState(""),[password,setPassword]=useState("");
-const signUp=async()=>{if(!name.trim()||!valiadtePhone(phone)||(email&&!valiadteEmail(email))||!valiadtePassword(password))return showSwal("نام، شماره، ایمیل و رمز عبور معتبر وارد کنید","error","تلاش مجدد");const res=await fetch("/api/auth/signup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,phone,email,password})});if(res.status===201)return swal({title:"ثبت نام با موفقیت انجام شد",icon:"success",buttons:"ورود به پنل"}).then(()=>router.replace("/p-user"));if(res.status===409)return showSwal("این ایمیل یا شماره قبلا ثبت شده است","error","تلاش مجدد");showSwal("ثبت نام انجام نشد","error","تلاش مجدد");};
-const sendOtp=async()=>{if(!name.trim()||!valiadtePhone(phone)||(email&&!valiadteEmail(email)))return showSwal("نام و شماره معتبر وارد کنید","error","تلاش مجدد");const res=await fetch("/api/auth/sms/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone,mode:"register"})});if(res.status===201){setOtp(true);return;}if(res.status===409)return showSwal("این شماره قبلا ثبت شده است","error","ورود");if(res.status===429)return showSwal("برای ارسال مجدد کمی صبر کنید","error","فهمیدم");showSwal("ارسال کد انجام نشد","error","تلاش مجدد");};
-return !otp?<><div className={styles.form}><input className={styles.input} value={name} onChange={e=>setName(e.target.value)} placeholder="نام"/><input className={styles.input} value={phone} onChange={e=>setPhone(e.target.value)} placeholder="شماره موبایل"/><input className={styles.input} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="ایمیل"/>{withPass&&<input className={styles.input} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="رمز عبور" autoComplete="new-password"/>}<button type="button" className={styles.btn} onClick={sendOtp}>ثبت نام با کد تایید</button><button type="button" className={styles.btn} onClick={()=>withPass?signUp():setWithPass(true)}>ثبت نام با رمز عبور</button><p onClick={showloginForm} className={styles.back_to_login}>برگشت به ورود</p></div></>:<Sms hideOtpForm={()=>setOtp(false)} phone={phone} mode="register" name={name} email={email}/>};export default Register;
+
+import { useState } from "react";
+import styles from "./register.module.css";
+import Sms from "./Sms";
+import { showSwal } from "@/utils/helpers";
+import {
+  valiadteEmail,
+  valiadtePassword,
+  valiadtePhone,
+} from "@/utils/validation";
+
+const Register = ({ showloginForm }) => {
+  const [withPass, setWithPass] = useState(false);
+  const [otp, setOtp] = useState(false);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const sendOtp = async (includePassword = false) => {
+    if (
+      !name.trim() ||
+      !valiadtePhone(phone) ||
+      (email && !valiadteEmail(email)) ||
+      (includePassword && !valiadtePassword(password))
+    ) {
+      return showSwal(
+        includePassword
+          ? "نام، شماره، ایمیل و رمز عبور معتبر وارد کنید"
+          : "نام و شماره معتبر وارد کنید",
+        "error",
+        "تلاش مجدد"
+      );
+    }
+
+    const res = await fetch("/api/auth/sms/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, mode: "register" }),
+    });
+
+    if (res.status === 201) {
+      setWithPass(includePassword);
+      setOtp(true);
+      return;
+    }
+    if (res.status === 409) {
+      return showSwal("این شماره قبلا ثبت شده است", "error", "ورود");
+    }
+    if (res.status === 429) {
+      return showSwal("برای ارسال مجدد کمی صبر کنید", "error", "فهمیدم");
+    }
+    return showSwal("ارسال کد انجام نشد", "error", "تلاش مجدد");
+  };
+
+  if (otp) {
+    return (
+      <Sms
+        hideOtpForm={() => setOtp(false)}
+        phone={phone}
+        mode="register"
+        name={name}
+        email={email}
+        password={withPass ? password : ""}
+      />
+    );
+  }
+
+  return (
+    <>
+      <div className={styles.form}>
+        <input
+          className={styles.input}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="نام"
+        />
+        <input
+          className={styles.input}
+          type="tel"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+          placeholder="شماره موبایل"
+        />
+        <input
+          className={styles.input}
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="ایمیل"
+        />
+        {withPass && (
+          <input
+            className={styles.input}
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="رمز عبور"
+            autoComplete="new-password"
+          />
+        )}
+        <button
+          type="button"
+          className={styles.btn}
+          onClick={() => sendOtp(false)}
+        >
+          ثبت نام با کد تایید
+        </button>
+        <button
+          type="button"
+          className={styles.btn}
+          onClick={() => (withPass ? sendOtp(true) : setWithPass(true))}
+        >
+          ثبت نام با رمز عبور
+        </button>
+        <p onClick={showloginForm} className={styles.back_to_login}>
+          برگشت به ورود
+        </p>
+      </div>
+    </>
+  );
+};
+
+export default Register;

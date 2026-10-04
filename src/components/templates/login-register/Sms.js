@@ -1,2 +1,89 @@
-"use client";import {useState} from "react";import styles from "./sms.module.css";import {showSwal} from "@/utils/helpers";import swal from "sweetalert";import {useRouter} from "next/navigation";
-const Sms=({hideOtpForm,phone,mode="login",name="",email=""})=>{const router=useRouter();const[code,setCode]=useState("");const verify=async()=>{if(!/^\d{6}$/.test(code))return showSwal("کد تایید باید ۶ رقمی باشد","error","تلاش مجدد");const res=await fetch("/api/auth/sms/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone,code,mode,name,email})});if(res.status===409)return showSwal("کد معتبر نیست","error","تلاش مجدد");if(res.status===410)return showSwal("کد منقضی شده است","error","ارسال مجدد");if(res.status===429)return showSwal("تعداد تلاش بیش از حد است","error","ارسال مجدد");if(res.ok)return swal({title:mode==="login"?"ورود انجام شد":"ثبت نام انجام شد",icon:"success",buttons:"ورود به پنل"}).then(()=>router.replace("/p-user"));showSwal("تایید کد انجام نشد","error","تلاش مجدد");};const resend=async()=>{const r=await fetch("/api/auth/sms/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone,mode})});return showSwal(r.status===201?"کد جدید ارسال شد":"ارسال مجدد انجام نشد",r.status===201?"success":"error","فهمیدم");};return <><div className={styles.form}><p>کد تایید</p><span className={styles.number}>{phone}</span><input className={styles.input} inputMode="numeric" maxLength={6} value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,""))}/><button type="button" className={styles.btn} onClick={verify}>ثبت کد تایید</button><button type="button" className={styles.send_again_code} onClick={resend}>ارسال مجدد کد</button></div><p onClick={hideOtpForm} className={styles.redirect_to_home}>لغو</p></>};export default Sms;
+"use client";
+
+import { useState } from "react";
+import styles from "./sms.module.css";
+import { showSwal } from "@/utils/helpers";
+import swal from "sweetalert";
+import { useRouter } from "next/navigation";
+
+const Sms = ({
+  hideOtpForm,
+  phone,
+  mode = "login",
+  name = "",
+  email = "",
+  password = "",
+}) => {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+
+  const verify = async () => {
+    if (!/^\d{6}$/.test(code)) {
+      return showSwal("کد تایید باید ۶ رقمی باشد", "error", "تلاش مجدد");
+    }
+
+    const res = await fetch("/api/auth/sms/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, code, mode, name, email, password }),
+    });
+
+    if (res.status === 409) {
+      return showSwal("کد معتبر نیست", "error", "تلاش مجدد");
+    }
+    if (res.status === 410) {
+      return showSwal("کد منقضی شده است", "error", "ارسال مجدد");
+    }
+    if (res.status === 429) {
+      return showSwal("تعداد تلاش بیش از حد است", "error", "ارسال مجدد");
+    }
+    if (res.ok) {
+      return swal({
+        title: mode === "login" ? "ورود انجام شد" : "ثبت نام انجام شد",
+        icon: "success",
+        buttons: "ورود به پنل",
+      }).then(() => router.replace("/p-user"));
+    }
+    return showSwal("تایید کد انجام نشد", "error", "تلاش مجدد");
+  };
+
+  const resend = async () => {
+    const response = await fetch("/api/auth/sms/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, mode }),
+    });
+    return showSwal(
+      response.status === 201 ? "کد جدید ارسال شد" : "ارسال مجدد انجام نشد",
+      response.status === 201 ? "success" : "error",
+      "فهمیدم"
+    );
+  };
+
+  return (
+    <>
+      <div className={styles.form}>
+        <p>کد تایید</p>
+        <span className={styles.number}>{phone}</span>
+        <input
+          className={styles.input}
+          inputMode="numeric"
+          maxLength={6}
+          value={code}
+          onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+        />
+        <button type="button" className={styles.btn} onClick={verify}>
+          ثبت کد تایید
+        </button>
+        <button type="button" className={styles.send_again_code} onClick={resend}>
+          ارسال مجدد کد
+        </button>
+      </div>
+      <p onClick={hideOtpForm} className={styles.redirect_to_home}>
+        لغو
+      </p>
+    </>
+  );
+};
+
+export default Sms;

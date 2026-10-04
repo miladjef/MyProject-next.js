@@ -14,7 +14,7 @@ const page = async () => {
     .sort({ _id: -1 });
 
   return (
-    <Layout>
+    <Layout user={user}>
       <Tickets tickets={JSON.parse(JSON.stringify(tickets))} />
     </Layout>
   );

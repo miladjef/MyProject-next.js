@@ -34,20 +34,21 @@ const Tabs = ({ product }) => {
               onClick={() => setTab("comments")}
             >
               نظرات (
-              {product.comments.filter((comment) => comment.isAccept).length})
+              {product.comments.length})
             </button>
           </li>
         </ul>
 
         <div className={styles.contents}>
           <section>
-            {tab === "description" && <Description />}
+            {tab === "description" && <Description product={product} />}
             {tab == "moreInfoes" && (
               <MoreInfoes product={JSON.parse(JSON.stringify(product))} />
             )}
             {tab == "comments" && (
               <Comments
                 productID={product._id}
+                productName={product.name}
                 comments={JSON.parse(JSON.stringify(product.comments))}
               />
             )}

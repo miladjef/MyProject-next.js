@@ -2,16 +2,20 @@ import connectToDB from "@/configs/db";
 import TicketModel from "@/models/Ticket";
 import { authUser } from "@/utils/serverHelpers";
 import { isValidObjectId } from "mongoose";
+import { getRequestIp, rateLimit, rateLimitResponse } from "@/utils/rateLimit";
 
 export async function POST(req) {
   try {
+    const ip = getRequestIp(req);
+    const limited = await rateLimit({ key: `ticket-answer:${ip}`, limit: 30, windowMs: 60 * 60_000 });
+    if (!limited.allowed) return rateLimitResponse(limited.retryAfter);
     await connectToDB();
     const actor = await authUser();
     if (!actor) return Response.json({ message: "Unauthorized" }, { status: 401 });
 
     const { body, ticketID } = await req.json();
     const cleanBody = String(body || "").trim();
-    if (!cleanBody || !isValidObjectId(ticketID)) {
+    if (!cleanBody || cleanBody.length > 10000 || !isValidObjectId(ticketID)) {
       return Response.json({ message: "Invalid answer data" }, { status: 400 });
     }
 

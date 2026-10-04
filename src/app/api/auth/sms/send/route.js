@@ -4,36 +4,42 @@ import OtpModel from "@/models/Otp";
 import UserModel from "@/models/User";
 import BanModel from "@/models/Ban";
 import { normalizePhone, valiadtePhone } from "@/utils/validation";
+import { getRequestIp, rateLimit, rateLimitResponse } from "@/utils/rateLimit";
 
 const getOtpSecret = () => {
   const secret = process.env.OTP_SECRET;
-  if (!secret) throw new Error("OTP_SECRET is not configured");
+  if (!secret || secret.length < 32) throw new Error("OTP_SECRET is not configured securely");
   return secret;
 };
 
 const hashOtp = (phone, code) =>
-  crypto
-    .createHmac("sha256", getOtpSecret())
-    .update(`${phone}:${code}`)
-    .digest("hex");
+  crypto.createHmac("sha256", getOtpSecret()).update(`${phone}:${code}`).digest("hex");
 
 export async function POST(req) {
   try {
     await connectToDB();
     const { phone, mode = "login" } = await req.json();
     const normalizedPhone = normalizePhone(phone);
-    if (!valiadtePhone(normalizedPhone) || !["login", "register"].includes(mode)) {
+    if (!valiadtePhone(normalizedPhone) || !["login", "register", "reset"].includes(mode)) {
       return Response.json({ message: "Invalid request" }, { status: 400 });
     }
 
+    const ip = getRequestIp(req);
+    const [ipLimit, phoneLimit] = await Promise.all([
+      rateLimit({ key: `otp-ip:${ip}`, limit: 12, windowMs: 60 * 60_000 }),
+      rateLimit({ key: `otp-phone:${normalizedPhone}`, limit: 5, windowMs: 60 * 60_000 }),
+    ]);
+    if (!ipLimit.allowed) return rateLimitResponse(ipLimit.retryAfter);
+    if (!phoneLimit.allowed) return rateLimitResponse(phoneLimit.retryAfter);
+
     const user = await UserModel.findOne({ phone: normalizedPhone });
-    if (mode === "login" && !user) {
+    if (["login", "reset"].includes(mode) && !user) {
       return Response.json({ message: "User not found" }, { status: 404 });
     }
     if (mode === "register" && user) {
       return Response.json({ message: "User already exists" }, { status: 409 });
     }
-    if (await BanModel.findOne({ phone: normalizedPhone })) {
+    if (await BanModel.exists({ phone: normalizedPhone })) {
       return Response.json({ message: "Account is blocked" }, { status: 403 });
     }
 
@@ -69,7 +75,7 @@ export async function POST(req) {
 
     await OtpModel.findOneAndUpdate(
       { phone: normalizedPhone },
-      { $set: { code: hashOtp(normalizedPhone, code), expTime: now + 300_000, times: 0, lastSentAt: now } },
+      { $set: { code: hashOtp(normalizedPhone, code), expTime: now + 300_000, times: 0, lastSentAt: now, mode } },
       { upsert: true, new: true }
     );
     return Response.json({ message: "Code sent successfully" }, { status: 201 });

@@ -1,36 +1,14 @@
-import React from "react";
 import Layout from "@/components/layouts/AdminPanelLayout";
 import styles from "@/components/templates/p-admin/comments/table.module.css";
 import Table from "@/components/templates/p-admin/comments/Table";
-import connectToDB from "@/configs/db";
 import CommentModel from "@/models/Comment";
 import { authAdmin } from "@/utils/serverHelpers";
 import { redirect } from "next/navigation";
+import Pagination from "@/components/modules/pagination/Pagination";
 
-const page = async () => {
-  const admin = await authAdmin();
-  if (!admin) redirect("/login-register");
-  await connectToDB();
-  const comments = await CommentModel.find({})
-    .sort({ _id: -1 })
-    // .populate("user")
-    .populate("productID")
-    .lean();
-
-  return (
-    <Layout>
-      <main>
-        {comments.length === 0 ? (
-          <p className={styles.empty}>کامنتی وجود ندارد</p>
-        ) : (
-          <Table
-            comments={JSON.parse(JSON.stringify(comments))}
-            title="لیست کامنت‌ها"
-          />
-        )}
-      </main>
-    </Layout>
-  );
-};
-
-export default page;
+export default async function Page({ searchParams }) {
+  const admin = await authAdmin(); if (!admin) redirect("/login-register");
+  const params = await searchParams; const page = Math.max(1, Number(params?.page) || 1), limit = 50;
+  const [comments,total] = await Promise.all([CommentModel.find({}).sort({createdAt:-1}).skip((page-1)*limit).limit(limit).populate("productID","name").lean(),CommentModel.countDocuments({})]);
+  return <Layout user={admin}><main>{comments.length===0?<p className={styles.empty}>کامنتی وجود ندارد</p>:<><Table comments={JSON.parse(JSON.stringify(comments))} title="لیست کامنت‌ها"/><Pagination page={page} pages={Math.max(1,Math.ceil(total/limit))} basePath="/p-admin/comments"/></>}</main></Layout>;
+}

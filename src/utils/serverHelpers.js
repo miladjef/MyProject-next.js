@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import UserModel from "@/models/User";
+import BanModel from "@/models/Ban";
 import connectToDB from "@/configs/db";
 import { verifyAccessToken } from "./auth";
 
@@ -12,16 +13,23 @@ const authUser = async () => {
   const tokenPayload = verifyAccessToken(token);
   if (!tokenPayload) return null;
 
-  if (tokenPayload.userId || tokenPayload.sub) {
-    return UserModel.findById(tokenPayload.userId || tokenPayload.sub);
-  }
+  const user = tokenPayload.userId || tokenPayload.sub
+    ? await UserModel.findById(tokenPayload.userId || tokenPayload.sub).select("+tokenVersion")
+    : tokenPayload.email
+      ? await UserModel.findOne({ email: tokenPayload.email }).select("+tokenVersion")
+      : null;
 
-  // Backward compatibility for tokens issued by older releases.
-  if (tokenPayload.email) {
-    return UserModel.findOne({ email: tokenPayload.email });
-  }
+  if (!user || user.isDeleted) return null;
+  if (Number(tokenPayload.tokenVersion || 0) !== Number(user.tokenVersion || 0)) return null;
 
-  return null;
+  const blocked = await BanModel.exists({
+    $or: [
+      ...(user.email ? [{ email: user.email }] : []),
+      ...(user.phone ? [{ phone: user.phone }] : []),
+    ],
+  });
+
+  return blocked ? null : user;
 };
 
 const authAdmin = async () => {
