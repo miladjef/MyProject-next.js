@@ -1,6 +1,6 @@
 # Next416 Commerce Project
 
-Programmer: Milad Jafari Gavzan
+Programmer: Miladjef
 
 This revision completes the project in four stabilization phases.
 
