@@ -4,7 +4,7 @@ require("./User");
 
 const schema = new mongoose.Schema(
   {
-    order: { type: mongoose.Types.ObjectId, ref: "Order", required: true, index: true },
+    order: { type: mongoose.Types.ObjectId, ref: "Order", required: true, unique: true, index: true },
     user: { type: mongoose.Types.ObjectId, ref: "User", required: true, index: true },
     amount: { type: Number, required: true, min: 0 },
     method: { type: String, enum: ["COD", "MANUAL", "GATEWAY"], required: true },
@@ -15,5 +15,6 @@ const schema = new mongoose.Schema(
   { timestamps: true }
 );
 
+schema.index({ createdAt: -1, status: 1 });
 const model = mongoose.models.Payment || mongoose.model("Payment", schema);
 export default model;

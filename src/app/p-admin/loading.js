@@ -1,0 +1,1 @@
+export default function Loading() { return <main style={{ padding: 30, direction: "rtl" }}><p>در حال بارگذاری پنل مدیریت...</p></main>; }

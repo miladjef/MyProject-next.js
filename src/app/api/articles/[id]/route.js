@@ -3,6 +3,8 @@ import { isValidObjectId } from "mongoose";
 import ArticleModel from "@/models/Article";
 import { authAdmin } from "@/utils/serverHelpers";
 import { removeLocalUpload, saveUploadedImage } from "@/utils/upload";
+import { safeServerError } from "@/utils/apiError";
+import { revalidateTag } from "next/cache";
 
 const slugify = (value) => String(value || "")
   .trim()
@@ -13,6 +15,7 @@ const slugify = (value) => String(value || "")
   .replace(/^-|-$/g, "");
 
 export async function PATCH(req, { params }) {
+  let createdImage = "";
   try {
     await connectToDB();
     const admin = await authAdmin();
@@ -56,17 +59,21 @@ export async function PATCH(req, { params }) {
       return Response.json({ message: "Invalid article data" }, { status: 400 });
     }
 
+    let oldImage = "";
     if (image && typeof image.arrayBuffer === "function" && image.size) {
-      const old = article.img;
-      article.img = await saveUploadedImage(image, { folder: "articles", maxBytes: 5 * 1024 * 1024 });
-      await removeLocalUpload(old);
+      oldImage = article.img;
+      createdImage = await saveUploadedImage(image, { folder: "articles", maxBytes: 5 * 1024 * 1024 });
+      article.img = createdImage;
     }
 
     await article.save();
+    revalidateTag("articles");
+    if (oldImage && oldImage !== createdImage) await removeLocalUpload(oldImage);
     return Response.json({ message: "Article updated", data: article });
   } catch (err) {
+    if (createdImage) await removeLocalUpload(createdImage).catch(() => {});
     if (err?.code === 11000) return Response.json({ message: "Article slug already exists" }, { status: 409 });
-    return Response.json({ message: err.message || "Article update failed" }, { status: 500 });
+    return safeServerError(err, "api.articles.[id]");
   }
 }
 
@@ -80,8 +87,9 @@ export async function DELETE(_req, { params }) {
     const article = await ArticleModel.findByIdAndDelete(id);
     if (!article) return Response.json({ message: "Article not found" }, { status: 404 });
     await removeLocalUpload(article.img);
+    revalidateTag("articles");
     return Response.json({ message: "Article deleted" });
   } catch (err) {
-    return Response.json({ message: err.message || "Article delete failed" }, { status: 500 });
+    return safeServerError(err, "api.articles.[id]");
   }
 }

@@ -2,6 +2,7 @@ import connectToDB from "@/configs/db";
 import { authUser } from "@/utils/serverHelpers";
 import WishlistModel from "@/models/Wishlist";
 import { isValidObjectId } from "mongoose";
+import { safeServerError } from "@/utils/apiError";
 
 export async function DELETE(req, { params }) {
   try {
@@ -13,6 +14,6 @@ export async function DELETE(req, { params }) {
     await WishlistModel.findOneAndDelete({ user: user._id, product: id });
     return Response.json({ message: "Product removed successfully" });
   } catch (err) {
-    return Response.json({ message: err.message || "Wishlist update failed" }, { status: 500 });
+    return safeServerError(err, "api.wishlist.[id]");
   }
 }

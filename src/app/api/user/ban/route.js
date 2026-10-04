@@ -3,6 +3,7 @@ import BanModel from "@/models/Ban";
 import UserModel from "@/models/User";
 import { authAdmin } from "@/utils/serverHelpers";
 import { normalizeEmail, normalizePhone } from "@/utils/validation";
+import { safeServerError } from "@/utils/apiError";
 
 export async function POST(req) {
   try {
@@ -40,6 +41,6 @@ export async function POST(req) {
 
     return Response.json({ message: "User banned successfully" });
   } catch (err) {
-    return Response.json({ message: err.message || "Ban failed" }, { status: 500 });
+    return safeServerError(err, "api.user.ban");
   }
 }

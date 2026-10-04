@@ -20,7 +20,7 @@ const normalizeItems = (items) => {
   return [...merged.entries()].map(([id, count]) => ({ id, count }));
 };
 
-const calculateQuote = async ({ items, couponCode = "", userId = null }) => {
+const calculateQuote = async ({ items, couponCode = "", userId = null, session = null }) => {
   await connectToDB();
   const normalized = normalizeItems(items);
   if (!normalized) return { error: "Invalid cart items", status: 400 };
@@ -28,6 +28,7 @@ const calculateQuote = async ({ items, couponCode = "", userId = null }) => {
   const ids = normalized.map((item) => item.id);
   const products = await ProductModel.find({ _id: { $in: ids }, ...activeProductFilter })
     .select("name sku price stock inventoryTracked img status")
+    .session(session)
     .lean();
   const byId = new Map(products.map((p) => [String(p._id), p]));
 
@@ -55,7 +56,7 @@ const calculateQuote = async ({ items, couponCode = "", userId = null }) => {
   const cleanCode = String(couponCode || "").trim().toUpperCase();
 
   if (cleanCode) {
-    discount = await DiscountModel.findOne({ code: cleanCode }).lean();
+    discount = await DiscountModel.findOne({ code: cleanCode }).session(session).lean();
     if (!discount || !discount.isActive || discount.uses >= discount.maxUse) {
       return { error: "Discount code is unavailable", status: 422 };
     }
@@ -70,7 +71,7 @@ const calculateQuote = async ({ items, couponCode = "", userId = null }) => {
         user: userId,
         discountCode: cleanCode,
         status: { $ne: "CANCELLED" },
-      });
+      }).session(session);
       if (usedByUser >= discount.perUserLimit) {
         return { error: "Discount per-user limit reached", status: 422 };
       }

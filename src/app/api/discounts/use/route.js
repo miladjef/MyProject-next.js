@@ -1,6 +1,7 @@
 import connectToDB from "@/configs/db";
 import DiscountModel from "@/models/Discount";
 import { getRequestIp, rateLimit, rateLimitResponse } from "@/utils/rateLimit";
+import { safeServerError } from "@/utils/apiError";
 
 export async function PUT(req) {
   try {
@@ -28,6 +29,6 @@ export async function PUT(req) {
 
     return Response.json({ code: discount.code, percent: discount.percent, minOrderAmount: discount.minOrderAmount || 0 });
   } catch (err) {
-    return Response.json({ message: err.message || "Discount check failed" }, { status: 500 });
+    return safeServerError(err, "api.discounts.use");
   }
 }

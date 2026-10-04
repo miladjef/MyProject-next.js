@@ -1,6 +1,7 @@
 import connectToDB from "@/configs/db";
 import { isValidObjectId } from "mongoose";
 import SubDepartmentModel from "@/models/SubDepartment";
+import { safeServerError } from "@/utils/apiError";
 
 export async function GET(req, { params }) {
   try {
@@ -9,6 +10,6 @@ export async function GET(req, { params }) {
     if (!isValidObjectId(id)) return Response.json({ message: "Invalid department id" }, { status: 400 });
     return Response.json(await SubDepartmentModel.find({ department: id }).sort({ title: 1 }));
   } catch (err) {
-    return Response.json({ message: err.message || "SubDepartments fetch failed" }, { status: 500 });
+    return safeServerError(err, "api.departments.sub.[id]");
   }
 }

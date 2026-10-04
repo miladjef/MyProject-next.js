@@ -26,19 +26,22 @@ async function AdminHomePage() {
     UserModel.countDocuments({ isDeleted: false }),
     ProductModel.countDocuments({}),
     OrderModel.countDocuments({}),
-    OrderModel.find({ createdAt: { $gte: sevenDaysAgo }, status: { $ne: "CANCELLED" } }).select("total createdAt").lean(),
-    UserModel.find({ createdAt: { $gte: fourteenDaysAgo }, isDeleted: false }).select("createdAt").lean(),
+    OrderModel.aggregate([
+      { $match: { createdAt: { $gte: sevenDaysAgo }, status: { $ne: "CANCELLED" } } },
+      { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "UTC" } }, sale: { $sum: "$total" } } },
+    ]),
+    UserModel.aggregate([
+      { $match: { createdAt: { $gte: fourteenDaysAgo }, isDeleted: false } },
+      { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "UTC" } }, count: { $sum: 1 } } },
+    ]),
   ]);
   const salesMap = new Map();
   for (let i = 0; i < 7; i++) { const d = new Date(sevenDaysAgo.getTime() + i * 86400000); salesMap.set(d.toISOString().slice(0, 10), 0); }
-  for (const order of sales) { const key = new Date(order.createdAt).toISOString().slice(0, 10); salesMap.set(key, (salesMap.get(key) || 0) + Number(order.total || 0)); }
+  for (const row of sales) salesMap.set(row._id, Number(row.sale || 0));
   const salesData = [...salesMap.entries()].map(([date, sale]) => ({ date, sale }));
 
   const signupByDay = new Map();
-  for (const item of recentUsers) {
-    const key = new Date(item.createdAt).toISOString().slice(0, 10);
-    signupByDay.set(key, (signupByDay.get(key) || 0) + 1);
-  }
+  for (const row of recentUsers) signupByDay.set(row._id, Number(row.count || 0));
   const growthData = Array.from({ length: 7 }).map((_, index) => {
     const currentDate = new Date(sevenDaysAgo.getTime() + index * dayMs);
     const previousDate = new Date(currentDate.getTime() - 7 * dayMs);

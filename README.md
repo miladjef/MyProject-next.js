@@ -44,7 +44,7 @@ This revision completes the project in four stabilization phases.
 
 ## Phase 4: Stability and maintenance
 
-- Next.js is pinned to 15.5.27.
+- Next.js is pinned to 15.5.27 and the production-hardening revision aligns the React stack with React 19.
 - ESLint is invoked directly instead of `next lint`.
 - Uploads verify file signatures instead of trusting browser MIME values.
 - MongoDB models include indexes and length or enum constraints for key fields.
@@ -67,3 +67,67 @@ This revision completes the project in four stabilization phases.
 `AccessTokenSecretKey` and `OTP_SECRET` should each contain a long random value. Do not commit `.env.local`.
 
 Uploaded images are stored under `public/uploads`. For a serverless deployment, replace the local upload adapter with persistent object storage.
+
+## Production hardening revision
+
+This revision adds an additional production hardening layer after the original four phases.
+
+- React and React DOM are aligned with React 19 and React Leaflet 5.
+- Recharts is upgraded to the React 19 compatible 3.x line.
+- Session cookies use a host-only secure cookie in production, HttpOnly and SameSite Strict.
+- Unsafe cross-site API mutations are rejected by middleware.
+- Security headers include CSP, HSTS in production, Referrer Policy, Permissions Policy and nosniff.
+- OTP responses no longer disclose whether a phone number belongs to an account.
+- Changing the account phone number requires verification of the new phone.
+- Changing email requires reauthentication when the account has a password.
+- Rate-limit increments are atomic at the MongoDB layer.
+- Order creation supports idempotency keys and MongoDB transactions when the deployment supports transactions.
+- Order and payment transitions are validated by a state machine.
+- Orders keep recipient, tracking and status-history snapshots.
+- Product deletion is now archival rather than physical deletion.
+- Products support slugs, categories, brands, image alt text and galleries.
+- Product pages include canonical metadata and Product structured data.
+- Articles include Article structured data. The root layout includes Organization structured data.
+- Sitemap and robots metadata routes are included.
+- Public latest-product and latest-article queries are cached with server revalidation.
+- Dashboard aggregates run inside MongoDB instead of loading all matching documents into Node.js.
+- Global loading and error boundaries are included.
+- A health endpoint is available at `/api/health`.
+- Docker and GitHub Actions CI definitions are included.
+- Node tests cover order-state rules, slug generation and security regressions.
+
+## Existing database migration
+
+After deploying this revision over an existing database, run:
+
+`npm run catalog:backfill`
+
+This fills missing product slugs without deleting or rewriting historical product ids. Old product URLs based on MongoDB ids continue to work.
+
+For production order transactions, use MongoDB Atlas, a replica set, or a sharded cluster. A standalone MongoDB instance cannot provide multi-document transactions. The application retains compensation logic for order creation on standalone development databases, while a transaction-capable deployment is the recommended production configuration.
+
+## Verification commands
+
+Run these commands after dependency installation:
+
+`npm test`
+
+`npm run lint`
+
+`npm run build`
+
+`npm run check`
+
+The project intentionally does not contain secrets. Configure `.env.local` from `.env.example` before running the application.
+
+## Final review additions
+
+- Discount deletion is archival so historical orders and per-user usage counters remain consistent.
+- Invalid category and brand filters return an empty result instead of matching uncategorized products.
+- Product and article cache tags are invalidated after admin mutations.
+- Article image replacement keeps the old file until the database save succeeds.
+- Malformed percent-encoded product and article URLs are decoded safely.
+- Leaflet uses a local marker asset instead of the previous external marker URL.
+- The production Docker image uses Next.js standalone output and runs as a non-root user.
+- CI starts MongoDB before lint, test and build verification.
+- The supported runtime baseline is Node.js 20 or newer.

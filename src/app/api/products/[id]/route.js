@@ -4,158 +4,109 @@ import ProductModel from "@/models/Product";
 import { authAdmin } from "@/utils/serverHelpers";
 import { removeLocalUpload, saveUploadedImage } from "@/utils/upload";
 import { activeProductFilter } from "@/utils/productFilters";
+import { ensureBrand, ensureCategory, uniqueProductSlug } from "@/utils/catalog";
+import { safeServerError } from "@/utils/apiError";
+import { safeDecodeURIComponent } from "@/utils/url";
+import { revalidateTag } from "next/cache";
 
-const editable = [
-  "name",
-  "sku",
-  "price",
-  "stock",
-  "inventoryTracked",
-  "status",
-  "shortDescription",
-  "longDescription",
-  "weight",
-  "suitableFor",
-  "smell",
-  "tags",
-];
+const productLookup = (id) => isValidObjectId(id) ? { _id: id } : { slug: safeDecodeURIComponent(id) };
+const editable = ["name", "slug", "sku", "price", "stock", "inventoryTracked", "status", "shortDescription", "longDescription", "weight", "suitableFor", "smell", "tags", "imgAlt"];
 
 export async function GET(_req, { params }) {
-  await connectToDB();
-  const { id } = await params;
-  if (!isValidObjectId(id)) {
-    return Response.json({ message: "Invalid product id" }, { status: 400 });
+  try {
+    await connectToDB();
+    const { id } = await params;
+    const product = await ProductModel.findOne({ ...productLookup(id), ...activeProductFilter })
+      .populate({ path: "comments", match: { isAccept: true }, select: "username body score adminReply createdAt" })
+      .populate("category", "name slug")
+      .populate("brand", "name slug")
+      .lean();
+    if (!product) return Response.json({ message: "Product not found" }, { status: 404 });
+    return Response.json(product);
+  } catch (err) {
+    return safeServerError(err, "products.get");
   }
-  const product = await ProductModel.findOne({ _id: id, ...activeProductFilter })
-    .populate({
-      path: "comments",
-      match: { isAccept: true },
-      select: "username body score adminReply createdAt",
-    })
-    .lean();
-  if (!product) {
-    return Response.json({ message: "Product not found" }, { status: 404 });
-  }
-  return Response.json(product);
 }
 
 export async function PATCH(req, { params }) {
-  let newImage = "";
-  let oldImage = "";
+  const createdFiles = [];
   try {
     await connectToDB();
     const admin = await authAdmin();
     if (!admin) return Response.json({ message: "Forbidden" }, { status: 403 });
-
     const { id } = await params;
-    if (!isValidObjectId(id)) {
-      return Response.json({ message: "Invalid product id" }, { status: 400 });
-    }
-
-    const product = await ProductModel.findById(id);
-    if (!product) {
-      return Response.json({ message: "Product not found" }, { status: 404 });
-    }
+    const product = await ProductModel.findOne(productLookup(id));
+    if (!product) return Response.json({ message: "Product not found" }, { status: 404 });
 
     let body = {};
     const type = req.headers.get("content-type") || "";
+    let newImage = "";
+    let oldImage = "";
+    let oldGalleryToRemove = [];
     if (type.includes("multipart/form-data")) {
       const form = await req.formData();
-      for (const key of editable) {
-        if (form.has(key)) body[key] = form.get(key);
-      }
+      for (const key of editable) if (form.has(key)) body[key] = form.get(key);
+      if (form.has("category")) body.category = form.get("category");
+      if (form.has("brand")) body.brand = form.get("brand");
       const image = form.get("img");
       if (image && typeof image.arrayBuffer === "function" && image.size) {
-        newImage = await saveUploadedImage(image, {
-          folder: "products",
-          maxBytes: 5 * 1024 * 1024,
-        });
-        oldImage = product.img;
-        product.img = newImage;
+        newImage = await saveUploadedImage(image, { folder: "products", maxBytes: 5 * 1024 * 1024 });
+        createdFiles.push(newImage); oldImage = product.img; product.img = newImage;
       }
-    } else {
-      body = await req.json();
-    }
+      const galleryFiles = form.getAll("gallery").filter((file) => file && typeof file.arrayBuffer === "function" && file.size).slice(0, 8);
+      if (galleryFiles.length) {
+        oldGalleryToRemove = Array.isArray(product.gallery) ? product.gallery.map((entry) => entry.url) : [];
+        const gallery = [];
+        for (const file of galleryFiles) {
+          const url = await saveUploadedImage(file, { folder: "products", maxBytes: 5 * 1024 * 1024 });
+          createdFiles.push(url); gallery.push({ url, alt: String(body.imgAlt || product.imgAlt || product.name).slice(0, 220) });
+        }
+        product.gallery = gallery;
+      }
+    } else body = await req.json();
 
     for (const key of editable) {
       if (!(key in body)) continue;
-      if (["price", "stock", "weight"].includes(key)) {
-        product[key] = Number(body[key]);
-      } else if (key === "inventoryTracked") {
-        product[key] = body[key] === true || String(body[key]) === "true";
-      } else if (key === "tags") {
-        product[key] = Array.isArray(body[key])
-          ? body[key]
-              .map(String)
-              .map((value) => value.trim())
-              .filter(Boolean)
-              .slice(0, 30)
-          : String(body[key])
-              .split(/[،,]/)
-              .map((value) => value.trim())
-              .filter(Boolean)
-              .slice(0, 30);
-      } else {
-        product[key] = String(body[key]).trim();
-      }
+      if (["price", "stock", "weight"].includes(key)) product[key] = Number(body[key]);
+      else if (key === "inventoryTracked") product[key] = body[key] === true || String(body[key]) === "true";
+      else if (key === "tags") product[key] = Array.isArray(body[key]) ? body[key].map(String).map((v) => v.trim()).filter(Boolean).slice(0, 30) : String(body[key]).split(/[،,]/).map((v) => v.trim()).filter(Boolean).slice(0, 30);
+      else product[key] = String(body[key]).trim();
     }
 
-    if (
-      !product.name ||
-      product.name.length > 180 ||
-      !Number.isFinite(product.price) ||
-      product.price < 0 ||
-      !Number.isInteger(product.stock) ||
-      product.stock < 0 ||
-      !["ACTIVE", "DRAFT", "ARCHIVED"].includes(product.status) ||
-      !product.shortDescription ||
-      product.shortDescription.length > 1000 ||
-      !product.longDescription ||
-      product.longDescription.length > 20000 ||
-      !Number.isFinite(product.weight) ||
-      product.weight < 0 ||
-      !product.suitableFor ||
-      product.suitableFor.length > 500 ||
-      !product.smell ||
-      product.smell.length > 500 ||
-      !Array.isArray(product.tags) ||
-      product.tags.length > 30 ||
-      product.tags.some((tag) => String(tag).length > 80)
-    ) {
-      if (newImage) await removeLocalUpload(newImage);
+    if (body.category !== undefined) product.category = (await ensureCategory(body.category))?._id || null;
+    if (body.brand !== undefined) product.brand = (await ensureBrand(body.brand))?._id || null;
+    if (!product.slug || body.slug !== undefined || body.name !== undefined) product.slug = await uniqueProductSlug(body.slug || product.name, product._id);
+    if (product.sku) product.sku = product.sku.toUpperCase();
+
+    if (!product.name || product.name.length > 180 || !product.slug || !Number.isFinite(product.price) || product.price < 0 || !Number.isInteger(product.stock) || product.stock < 0 || !["ACTIVE", "DRAFT", "ARCHIVED"].includes(product.status) || !product.shortDescription || !product.longDescription || !Number.isFinite(product.weight) || product.weight < 0 || !product.suitableFor || !product.smell || !Array.isArray(product.tags) || product.tags.length > 30) {
+      await Promise.all(createdFiles.map((file) => removeLocalUpload(file).catch(() => {})));
       return Response.json({ message: "Invalid product data" }, { status: 400 });
     }
 
-    if (product.sku) product.sku = product.sku.toUpperCase();
     await product.save();
-    if (newImage && oldImage && oldImage !== newImage) {
-      await removeLocalUpload(oldImage);
-    }
-    return Response.json({ message: "Product updated successfully" });
+    revalidateTag("products");
+    if (newImage && oldImage && oldImage !== newImage) await removeLocalUpload(oldImage);
+    if (oldGalleryToRemove.length) await Promise.all(oldGalleryToRemove.map((url) => removeLocalUpload(url).catch(() => {})));
+    return Response.json({ message: "Product updated successfully", data: product });
   } catch (err) {
-    if (newImage) await removeLocalUpload(newImage).catch(() => {});
-    if (err?.code === 11000) {
-      return Response.json({ message: "SKU already exists" }, { status: 409 });
-    }
-    return Response.json(
-      { message: err.message || "Product update failed" },
-      { status: /image/i.test(err.message || "") ? 400 : 500 }
-    );
+    await Promise.all(createdFiles.map((file) => removeLocalUpload(file).catch(() => {})));
+    if (err?.code === 11000) return Response.json({ message: "SKU or product slug already exists" }, { status: 409 });
+    if (/image/i.test(err?.message || "")) return Response.json({ message: "Invalid image" }, { status: 400 });
+    return safeServerError(err, "products.update");
   }
 }
 
 export async function DELETE(_req, { params }) {
-  await connectToDB();
-  const admin = await authAdmin();
-  if (!admin) return Response.json({ message: "Forbidden" }, { status: 403 });
-  const { id } = await params;
-  if (!isValidObjectId(id)) {
-    return Response.json({ message: "Invalid product id" }, { status: 400 });
+  try {
+    await connectToDB();
+    const admin = await authAdmin();
+    if (!admin) return Response.json({ message: "Forbidden" }, { status: 403 });
+    const { id } = await params;
+    const product = await ProductModel.findOneAndUpdate(productLookup(id), { $set: { status: "ARCHIVED" } }, { new: true });
+    if (!product) return Response.json({ message: "Product not found" }, { status: 404 });
+    revalidateTag("products");
+    return Response.json({ message: "Product archived successfully" });
+  } catch (err) {
+    return safeServerError(err, "products.archive");
   }
-  const product = await ProductModel.findByIdAndDelete(id);
-  if (!product) {
-    return Response.json({ message: "Product not found" }, { status: 404 });
-  }
-  await removeLocalUpload(product.img);
-  return Response.json({ message: "Product deleted successfully" });
 }

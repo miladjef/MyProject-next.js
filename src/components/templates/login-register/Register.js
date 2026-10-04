@@ -40,7 +40,7 @@ const Register = ({ showloginForm }) => {
       body: JSON.stringify({ phone, mode: "register" }),
     });
 
-    if (res.status === 201) {
+    if (res.status === 202) {
       setWithPass(includePassword);
       setOtp(true);
       return;

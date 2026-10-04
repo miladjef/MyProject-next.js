@@ -188,10 +188,6 @@ a {
   color: rgb(0, 0, 0) !important;
 }
 
-.leaflet-default-icon-path {
-  background-image: url(https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png) !important;
-}
-
 .leaflet-top {
   right: 12px !important;
   bottom: 12px !important;

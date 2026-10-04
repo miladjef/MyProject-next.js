@@ -1,7 +1,9 @@
 import connectToDB from "@/configs/db";
 import ArticleModel from "@/models/Article";
 import { authAdmin } from "@/utils/serverHelpers";
-import { saveUploadedImage } from "@/utils/upload";
+import { removeLocalUpload, saveUploadedImage } from "@/utils/upload";
+import { safeServerError } from "@/utils/apiError";
+import { revalidateTag } from "next/cache";
 
 const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -26,6 +28,7 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  let createdImage = "";
   try {
     const admin = await authAdmin();
     if (!admin) return Response.json({ message: "Forbidden" }, { status: 403 });
@@ -41,11 +44,16 @@ export async function POST(req) {
     if (!title || !body || !slug || !["DRAFT", "PUBLISHED"].includes(status)) return Response.json({ message: "Invalid article data" }, { status: 400 });
     let img = "";
     const file = form.get("img");
-    if (file && typeof file.arrayBuffer === "function" && file.size) img = await saveUploadedImage(file, { folder: "articles", maxBytes: 5 * 1024 * 1024 });
+    if (file && typeof file.arrayBuffer === "function" && file.size) {
+      createdImage = await saveUploadedImage(file, { folder: "articles", maxBytes: 5 * 1024 * 1024 });
+      img = createdImage;
+    }
     const article = await ArticleModel.create({ title, slug, body, excerpt, author, tags, status, img, publishedAt: status === "PUBLISHED" ? new Date() : null });
+    revalidateTag("articles");
     return Response.json({ message: "Article created", data: article }, { status: 201 });
   } catch (err) {
+    if (createdImage) await removeLocalUpload(createdImage).catch(() => {});
     if (err?.code === 11000) return Response.json({ message: "Article slug already exists" }, { status: 409 });
-    return Response.json({ message: err.message || "Article creation failed" }, { status: 500 });
+    return safeServerError(err, "api.articles");
   }
 }

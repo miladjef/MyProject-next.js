@@ -3,6 +3,7 @@ import CommentModel from "@/models/Comment";
 import { authAdmin } from "@/utils/serverHelpers";
 import { isValidObjectId } from "mongoose";
 import { recalculateProductRating } from "@/utils/productRating";
+import { safeServerError } from "@/utils/apiError";
 
 export async function PUT(req) {
   try {
@@ -16,6 +17,6 @@ export async function PUT(req) {
     await recalculateProductRating(comment.productID);
     return Response.json({ message: "Comment rejected successfully" });
   } catch (err) {
-    return Response.json({ message: err.message || "Comment update failed" }, { status: 500 });
+    return safeServerError(err, "api.comments.reject");
   }
 }

@@ -54,8 +54,8 @@ const Sms = ({
       body: JSON.stringify({ phone, mode }),
     });
     return showSwal(
-      response.status === 201 ? "کد جدید ارسال شد" : "ارسال مجدد انجام نشد",
-      response.status === 201 ? "success" : "error",
+      response.status === 202 ? "کد جدید ارسال شد" : "ارسال مجدد انجام نشد",
+      response.status === 202 ? "success" : "error",
       "فهمیدم"
     );
   };

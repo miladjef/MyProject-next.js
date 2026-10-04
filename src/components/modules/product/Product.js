@@ -1,2 +1,10 @@
-import Link from "next/link";import styles from "./product.module.css";import {FaRegStar,FaStar} from "react-icons/fa";import {CiSearch} from "react-icons/ci";
-const Card=({_id,name,price,img,score=0})=>{const s=Math.max(0,Math.min(5,Math.round(Number(score)||0))),href=_id?`/product/${_id}`:"/";return <div className={styles.card}><div className={styles.details_container}><img src={img||"/images/logo.png"} alt={name||"محصول"}/><div className={styles.icons}><Link href={href}><CiSearch/><p className={styles.tooltip}>مشاهده محصول</p></Link></div></div><div className={styles.details}><Link href={href}>{name}</Link><div>{new Array(s).fill(0).map((_,i)=><FaStar key={`f-${i}`}/>)}{new Array(5-s).fill(0).map((_,i)=><FaRegStar key={`e-${i}`}/>)}</div><span>{Number(price||0).toLocaleString()} تومان</span></div></div>};export default Card;
+import Link from "next/link";
+import styles from "./product.module.css";
+import { FaRegStar, FaStar } from "react-icons/fa";
+import { CiSearch } from "react-icons/ci";
+const Card = ({ _id, slug, name, price, img, imgAlt, score = 0 }) => {
+  const s = Math.max(0, Math.min(5, Math.round(Number(score) || 0)));
+  const href = slug ? `/product/${encodeURIComponent(slug)}` : _id ? `/product/${_id}` : "/";
+  return <div className={styles.card}><div className={styles.details_container}><img src={img || "/images/logo.png"} alt={imgAlt || name || "محصول"}/><div className={styles.icons}><Link href={href}><CiSearch/><p className={styles.tooltip}>مشاهده محصول</p></Link></div></div><div className={styles.details}><Link href={href}>{name}</Link><div>{new Array(s).fill(0).map((_,i)=><FaStar key={`f-${i}`}/>)}{new Array(5-s).fill(0).map((_,i)=><FaRegStar key={`e-${i}`}/>)}</div><span>{Number(price||0).toLocaleString()} تومان</span></div></div>;
+};
+export default Card;

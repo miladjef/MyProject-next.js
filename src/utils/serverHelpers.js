@@ -3,11 +3,12 @@ import UserModel from "@/models/User";
 import BanModel from "@/models/Ban";
 import connectToDB from "@/configs/db";
 import { verifyAccessToken } from "./auth";
+import { getSessionCookieName } from "./sessionCookie";
 
 const authUser = async () => {
   await connectToDB();
   const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
+  const token = cookieStore.get(getSessionCookieName())?.value;
   if (!token) return null;
 
   const tokenPayload = verifyAccessToken(token);

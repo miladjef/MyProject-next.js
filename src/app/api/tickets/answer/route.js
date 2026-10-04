@@ -3,6 +3,7 @@ import TicketModel from "@/models/Ticket";
 import { authUser } from "@/utils/serverHelpers";
 import { isValidObjectId } from "mongoose";
 import { getRequestIp, rateLimit, rateLimitResponse } from "@/utils/rateLimit";
+import { safeServerError } from "@/utils/apiError";
 
 export async function POST(req) {
   try {
@@ -47,6 +48,6 @@ export async function POST(req) {
 
     return Response.json({ message: "Answer saved successfully" }, { status: 201 });
   } catch (err) {
-    return Response.json({ message: err.message || "Answer creation failed" }, { status: 500 });
+    return safeServerError(err, "api.tickets.answer");
   }
 }

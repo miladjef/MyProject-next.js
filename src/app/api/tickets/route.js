@@ -6,6 +6,7 @@ import SubDepartmentModel from "@/models/SubDepartment";
 import { isValidObjectId } from "mongoose";
 import { getRequestIp, rateLimit, rateLimitResponse } from "@/utils/rateLimit";
 import { saveUploadedImage } from "@/utils/upload";
+import { safeServerError } from "@/utils/apiError";
 
 export async function POST(req) {
   try {
@@ -49,6 +50,7 @@ export async function POST(req) {
     await TicketModel.create({ title: cleanTitle, body: cleanBody, department, subDepartment, priority: numericPriority, user: user._id, attachment });
     return Response.json({ message: "Ticket saved successfully" }, { status: 201 });
   } catch (err) {
-    return Response.json({ message: err.message || "Ticket creation failed" }, { status: /image/i.test(err.message || "") ? 400 : 500 });
+    if (/image/i.test(err?.message || "")) return Response.json({ message: "Invalid attachment" }, { status: 400 });
+    return safeServerError(err, "tickets.create");
   }
 }

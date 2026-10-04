@@ -1,6 +1,7 @@
 import { calculateQuote } from "@/utils/order";
 import { authUser } from "@/utils/serverHelpers";
 import { getRequestIp, rateLimit, rateLimitResponse } from "@/utils/rateLimit";
+import { safeServerError } from "@/utils/apiError";
 
 export async function POST(req) {
   try {
@@ -15,6 +16,6 @@ export async function POST(req) {
 
     return Response.json(quote);
   } catch (err) {
-    return Response.json({ message: err.message || "Quote failed" }, { status: 500 });
+    return safeServerError(err, "api.checkout.quote");
   }
 }

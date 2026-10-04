@@ -3,14 +3,15 @@ import styles from "./table.module.css";
 import { useRouter } from "next/navigation";
 import { showSwal } from "@/utils/helpers";
 import swal from "sweetalert";
+import { showAdminForm } from "@/utils/adminDialog";
 
 export default function DataTable({ comments, title }) {
   const router = useRouter();
   const request = async (url, options, success) => { const res = await fetch(url, options); const data = await res.json().catch(() => ({})); if (!res.ok) return swal({title:data.message||"عملیات انجام نشد",icon:"error",buttons:"فهمیدم"}); if(success) await swal({title:success,icon:"success",buttons:"فهمیدم"}); router.refresh(); };
   const acceptComment = (id) => request("/api/comments/accept", { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) }, "کامنت تایید شد");
   const rejectComment = (id) => request("/api/comments/reject", { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({id}) }, "کامنت رد شد");
-  const edit = async (c) => { const body=window.prompt("متن دیدگاه",c.body); if(body===null)return; await request(`/api/comments/${c._id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({body})},"دیدگاه ویرایش شد"); };
-  const reply = async (c) => { const adminReply=window.prompt("پاسخ مدیر",c.adminReply||""); if(adminReply===null)return; await request(`/api/comments/${c._id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({adminReply})},"پاسخ ثبت شد"); };
+  const edit = async (c) => { const values=await showAdminForm({title:"ویرایش دیدگاه",fields:[{name:"body",label:"متن دیدگاه",value:c.body,type:"textarea"}]}); if(!values)return; await request(`/api/comments/${c._id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({body:values.body})},"دیدگاه ویرایش شد"); };
+  const reply = async (c) => { const values=await showAdminForm({title:"پاسخ مدیر",fields:[{name:"adminReply",label:"پاسخ",value:c.adminReply||"",type:"textarea"}]}); if(!values)return; await request(`/api/comments/${c._id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({adminReply:values.adminReply})},"پاسخ ثبت شد"); };
   const remove = (c) => swal({title:"دیدگاه حذف شود؟",icon:"warning",buttons:["خیر","بله"]}).then((ok)=>ok&&request(`/api/comments/${c._id}`,{method:"DELETE"},"دیدگاه حذف شد"));
   const ban = (c) => request("/api/user/ban",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:c.email})},"کاربر مسدود شد");
 

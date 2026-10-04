@@ -3,12 +3,10 @@ import { MdOutlineCopyright } from "react-icons/md";
 import { FaRegHeart } from "react-icons/fa";
 import Article from "./Article";
 import Link from "next/link";
-import ArticleModel from "@/models/Article";
-import connectToDB from "@/configs/db";
+import { getLatestArticles } from "@/utils/publicData";
 
 const Footer = async () => {
-  await connectToDB();
-  const articles = await ArticleModel.find({ status: "PUBLISHED" }).sort({ publishedAt: -1, createdAt: -1 }).limit(2).lean();
+  const articles = await getLatestArticles(2);
   const siteName = process.env.SITE_NAME || "فروشگاه قهوه";
   const siteAddress = process.env.SITE_ADDRESS || "";
   const sitePhone = process.env.SITE_PHONE || "";

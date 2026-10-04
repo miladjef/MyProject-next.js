@@ -9,11 +9,8 @@ import UserModel from "@/models/User";
 import BanModel from "@/models/Ban";
 import connectToDB from "@/configs/db";
 import { getRequestIp, rateLimit, rateLimitResponse } from "@/utils/rateLimit";
-
-const cookie = (token) =>
-  `token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=7200${
-    process.env.NODE_ENV === "production" ? "; Secure" : ""
-  }`;
+import { serializeSessionCookie } from "@/utils/sessionCookie";
+import { safeServerError } from "@/utils/apiError";
 
 export async function POST(req) {
   try {
@@ -42,7 +39,7 @@ export async function POST(req) {
         ...(user.phone ? [{ phone: user.phone }] : []),
       ],
     });
-    if (banned) return Response.json({ message: "Account is blocked" }, { status: 403 });
+    if (banned) return Response.json({ message: "Invalid credentials" }, { status: 401 });
 
     if (!(await verifyPassword(password, user.password))) {
       return Response.json({ message: "Invalid credentials" }, { status: 401 });
@@ -51,9 +48,9 @@ export async function POST(req) {
     const accessToken = generateAccessToken({ userId: String(user._id), role: user.role, tokenVersion: Number(user.tokenVersion || 0) });
     return Response.json(
       { message: "User logged in successfully" },
-      { status: 200, headers: { "Set-Cookie": cookie(accessToken) } }
+      { status: 200, headers: { "Set-Cookie": serializeSessionCookie(accessToken) } }
     );
   } catch (err) {
-    return Response.json({ message: err.message || "Login failed" }, { status: 500 });
+    return safeServerError(err, "auth.signin");
   }
 }

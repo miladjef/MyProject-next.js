@@ -6,6 +6,7 @@ import { valiadteEmail, normalizeEmail } from "@/utils/validation";
 import { authUser } from "@/utils/serverHelpers";
 import { getRequestIp, rateLimit, rateLimitResponse } from "@/utils/rateLimit";
 import { activeProductFilter } from "@/utils/productFilters";
+import { safeServerError } from "@/utils/apiError";
 
 export async function POST(req) {
   try {
@@ -37,7 +38,7 @@ export async function POST(req) {
     await ProductModel.updateOne({ _id: productID }, { $addToSet: { comments: comment._id } });
     return Response.json({ message: "Comment created successfully", data: comment }, { status: 201 });
   } catch (err) {
-    return Response.json({ message: err.message || "Comment creation failed" }, { status: 500 });
+    return safeServerError(err, "api.comments");
   }
 }
 
@@ -50,6 +51,6 @@ export async function GET() {
     ).sort({ date: -1 });
     return Response.json(comments);
   } catch (err) {
-    return Response.json({ message: err.message || "Comments fetch failed" }, { status: 500 });
+    return safeServerError(err, "api.comments");
   }
 }

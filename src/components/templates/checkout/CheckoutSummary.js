@@ -13,10 +13,14 @@ const CheckoutSummary = ({ isLogin }) => {
   const [submitting, setSubmitting] = useState(false);
   const [address, setAddress] = useState({ province: "", city: "", postalCode: "", addressLine: "" });
   const [paymentMethod, setPaymentMethod] = useState("COD");
+  const [idempotencyKey, setIdempotencyKey] = useState("");
 
   useEffect(() => {
     (async () => {
       try {
+        const savedKey = sessionStorage.getItem("checkoutIdempotencyKey") || crypto.randomUUID();
+        sessionStorage.setItem("checkoutIdempotencyKey", savedKey);
+        setIdempotencyKey(savedKey);
         const items = JSON.parse(localStorage.getItem("cart") || "[]");
         const couponCode = String(localStorage.getItem("checkoutCoupon") || "");
         if (!Array.isArray(items) || !items.length) return;
@@ -44,22 +48,25 @@ const CheckoutSummary = ({ isLogin }) => {
     if (!address.province.trim() || !address.city.trim() || !/^\d{5,20}$/.test(address.postalCode.replace(/\s/g, "")) || !address.addressLine.trim()) {
       return showSwal("آدرس و کدپستی را کامل وارد کنید", "error", "فهمیدم");
     }
+    if (!idempotencyKey) return showSwal("شناسه امن سفارش آماده نشده است", "error", "فهمیدم");
     setSubmitting(true);
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
         body: JSON.stringify({
           items: cart.map((item) => ({ id: item.id, count: item.count })),
           couponCode: localStorage.getItem("checkoutCoupon") || "",
           address,
           paymentMethod,
+          idempotencyKey,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "ثبت سفارش انجام نشد");
       localStorage.removeItem("cart");
       localStorage.removeItem("checkoutCoupon");
+      sessionStorage.removeItem("checkoutIdempotencyKey");
       window.dispatchEvent(new Event("cart-updated"));
       router.replace(`/complate?order=${encodeURIComponent(data.order.id)}`);
     } catch (error) {

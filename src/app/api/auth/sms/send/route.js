@@ -3,8 +3,10 @@ import connectToDB from "@/configs/db";
 import OtpModel from "@/models/Otp";
 import UserModel from "@/models/User";
 import BanModel from "@/models/Ban";
+import { authUser } from "@/utils/serverHelpers";
 import { normalizePhone, valiadtePhone } from "@/utils/validation";
 import { getRequestIp, rateLimit, rateLimitResponse } from "@/utils/rateLimit";
+import { safeServerError } from "@/utils/apiError";
 
 const getOtpSecret = () => {
   const secret = process.env.OTP_SECRET;
@@ -15,12 +17,18 @@ const getOtpSecret = () => {
 const hashOtp = (phone, code) =>
   crypto.createHmac("sha256", getOtpSecret()).update(`${phone}:${code}`).digest("hex");
 
+const genericResponse = () => Response.json(
+  { message: "If the request is eligible, a verification code will be sent." },
+  { status: 202 }
+);
+
 export async function POST(req) {
   try {
     await connectToDB();
     const { phone, mode = "login" } = await req.json();
     const normalizedPhone = normalizePhone(phone);
-    if (!valiadtePhone(normalizedPhone) || !["login", "register", "reset"].includes(mode)) {
+    const validModes = ["login", "register", "reset", "change-phone"];
+    if (!valiadtePhone(normalizedPhone) || !validModes.includes(mode)) {
       return Response.json({ message: "Invalid request" }, { status: 400 });
     }
 
@@ -32,16 +40,22 @@ export async function POST(req) {
     if (!ipLimit.allowed) return rateLimitResponse(ipLimit.retryAfter);
     if (!phoneLimit.allowed) return rateLimitResponse(phoneLimit.retryAfter);
 
-    const user = await UserModel.findOne({ phone: normalizedPhone });
-    if (["login", "reset"].includes(mode) && !user) {
-      return Response.json({ message: "User not found" }, { status: 404 });
+    const user = await UserModel.findOne({ phone: normalizedPhone, isDeleted: false });
+    let currentUser = null;
+    let eligible = true;
+
+    if (mode === "change-phone") {
+      currentUser = await authUser();
+      if (!currentUser) return Response.json({ message: "Unauthorized" }, { status: 401 });
+      eligible = !user || String(user._id) === String(currentUser._id);
+    } else if (["login", "reset"].includes(mode)) {
+      eligible = Boolean(user);
+    } else if (mode === "register") {
+      eligible = !user;
     }
-    if (mode === "register" && user) {
-      return Response.json({ message: "User already exists" }, { status: 409 });
-    }
-    if (await BanModel.exists({ phone: normalizedPhone })) {
-      return Response.json({ message: "Account is blocked" }, { status: 403 });
-    }
+
+    if (eligible && await BanModel.exists({ phone: normalizedPhone })) eligible = false;
+    if (!eligible) return genericResponse();
 
     const now = Date.now();
     const previous = await OtpModel.findOne({ phone: normalizedPhone });
@@ -68,9 +82,12 @@ export async function POST(req) {
         inputData: [{ "verification-code": code }],
       }),
       cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
     });
+
     if (!response.ok) {
-      return Response.json({ message: "SMS provider rejected the request" }, { status: 502 });
+      console.error("OTP provider rejected request", response.status);
+      return genericResponse();
     }
 
     await OtpModel.findOneAndUpdate(
@@ -78,8 +95,8 @@ export async function POST(req) {
       { $set: { code: hashOtp(normalizedPhone, code), expTime: now + 300_000, times: 0, lastSentAt: now, mode } },
       { upsert: true, new: true }
     );
-    return Response.json({ message: "Code sent successfully" }, { status: 201 });
+    return genericResponse();
   } catch (err) {
-    return Response.json({ message: err.message || "OTP send failed" }, { status: 500 });
+    return safeServerError(err, "auth.otp.send");
   }
 }

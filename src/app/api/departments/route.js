@@ -1,6 +1,7 @@
 import connectToDB from "@/configs/db";
 import DepartmentModel from "@/models/Department";
 import { authAdmin } from "@/utils/serverHelpers";
+import { safeServerError } from "@/utils/apiError";
 
 export async function POST(req) {
   try {
@@ -14,7 +15,7 @@ export async function POST(req) {
     return Response.json({ message: "Department created successfully" }, { status: 201 });
   } catch (err) {
     if (err?.code === 11000) return Response.json({ message: "Department already exists" }, { status: 409 });
-    return Response.json({ message: err.message || "Department creation failed" }, { status: 500 });
+    return safeServerError(err, "api.departments");
   }
 }
 
@@ -23,6 +24,6 @@ export async function GET() {
     await connectToDB();
     return Response.json(await DepartmentModel.find({}).sort({ title: 1 }));
   } catch (err) {
-    return Response.json({ message: err.message || "Departments fetch failed" }, { status: 500 });
+    return safeServerError(err, "api.departments");
   }
 }

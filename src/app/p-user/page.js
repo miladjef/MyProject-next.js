@@ -19,12 +19,10 @@ const page = async () => {
     .sort({ _id: -1 })
     .lean();
 
-  const allTickets = await TicketModel.find({ user: user._id });
-  const comments = await CommentModel.find({
-    $or: [{ user: user._id }, ...(user.email ? [{ email: user.email }] : [])],
-  });
-  const wishes = await WishlistModel.find({ user: user._id });
-  const [orderCount, recentOrders] = await Promise.all([
+  const [ticketCount, commentCount, wishCount, orderCount, recentOrders] = await Promise.all([
+    TicketModel.countDocuments({ user: user._id }),
+    CommentModel.countDocuments({ $or: [{ user: user._id }, ...(user.email ? [{ email: user.email }] : [])] }),
+    WishlistModel.countDocuments({ user: user._id }),
     OrderModel.countDocuments({ user: user._id }),
     OrderModel.find({ user: user._id }).sort({ createdAt: -1 }).limit(3).lean(),
   ]);
@@ -33,10 +31,10 @@ const page = async () => {
     <Layout user={user}>
       <main>
         <section className={styles.boxes}>
-          <Box title="مجموع تیکت ها " value={allTickets.length} />
-          <Box title="مجموع کامنت ها " value={comments.length} />
+          <Box title="مجموع تیکت ها " value={ticketCount} />
+          <Box title="مجموع کامنت ها " value={commentCount} />
           <Box title="مجموع سفارشات" value={orderCount} />
-          <Box title="مجموع علاقه مندی ها" value={wishes.length} />
+          <Box title="مجموع علاقه مندی ها" value={wishCount} />
         </section>
         <section className={styles.contents}>
           <Tickets tickets={JSON.parse(JSON.stringify(tickets))} />

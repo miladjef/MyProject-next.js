@@ -1,6 +1,7 @@
 import connectToDB from "@/configs/db";
 import DiscountModel from "@/models/Discount";
 import { authAdmin } from "@/utils/serverHelpers";
+import { safeServerError } from "@/utils/apiError";
 
 export async function POST(req) {
   try {
@@ -21,7 +22,7 @@ export async function POST(req) {
     await DiscountModel.create({ code: cleanCode, percent: numericPercent, maxUse: numericMaxUse, minOrderAmount: numericMin, expiresAt: expiry, perUserLimit: numericPerUser });
     return Response.json({ message: "Discount code created successfully" }, { status: 201 });
   } catch (err) {
-    return Response.json({ message: err.message || "Discount creation failed" }, { status: 500 });
+    return safeServerError(err, "api.discounts");
   }
 }
 

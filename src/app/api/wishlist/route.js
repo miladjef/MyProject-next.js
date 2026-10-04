@@ -4,6 +4,7 @@ import ProductModel from "@/models/Product";
 import { authUser } from "@/utils/serverHelpers";
 import { isValidObjectId } from "mongoose";
 import { activeProductFilter } from "@/utils/productFilters";
+import { safeServerError } from "@/utils/apiError";
 
 export async function POST(req) {
   try {
@@ -23,7 +24,7 @@ export async function POST(req) {
     );
     return Response.json({ message: "Product added to wishlist successfully" }, { status: 201 });
   } catch (err) {
-    return Response.json({ message: err.message || "Wishlist update failed" }, { status: 500 });
+    return safeServerError(err, "api.wishlist");
   }
 }
 
@@ -40,6 +41,6 @@ export async function GET() {
     const visibleItems = items.filter((item) => item.product);
     return Response.json({ items: visibleItems, count: visibleItems.length });
   } catch (err) {
-    return Response.json({ message: err.message || "Wishlist fetch failed" }, { status: 500 });
+    return safeServerError(err, "api.wishlist");
   }
 }

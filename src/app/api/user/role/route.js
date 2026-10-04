@@ -2,6 +2,7 @@ import connectToDB from "@/configs/db";
 import UserModel from "@/models/User";
 import { authAdmin } from "@/utils/serverHelpers";
 import { isValidObjectId } from "mongoose";
+import { safeServerError } from "@/utils/apiError";
 
 export async function PUT(req) {
   try {
@@ -22,6 +23,6 @@ export async function PUT(req) {
     await user.save();
     return Response.json({ message: "User role updated successfully" });
   } catch (err) {
-    return Response.json({ message: err.message || "Role update failed" }, { status: 500 });
+    return safeServerError(err, "api.user.role");
   }
 }

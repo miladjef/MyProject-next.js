@@ -3,6 +3,7 @@ import SubDepartmentModel from "@/models/SubDepartment";
 import DepartmentModel from "@/models/Department";
 import { authAdmin } from "@/utils/serverHelpers";
 import { isValidObjectId } from "mongoose";
+import { safeServerError } from "@/utils/apiError";
 
 export async function POST(req) {
   try {
@@ -17,6 +18,6 @@ export async function POST(req) {
     return Response.json({ message: "SubDepartment created successfully" }, { status: 201 });
   } catch (err) {
     if (err?.code === 11000) return Response.json({ message: "SubDepartment already exists" }, { status: 409 });
-    return Response.json({ message: err.message || "SubDepartment creation failed" }, { status: 500 });
+    return safeServerError(err, "api.departments.sub");
   }
 }

@@ -59,7 +59,7 @@ const Login = ({ showRegisterForm }) => {
       body: JSON.stringify({ phone: identifier, mode: "login" }),
     });
 
-    if (res.status === 201) {
+    if (res.status === 202) {
       setOtpPhone(identifier);
       setOtp(true);
       return;

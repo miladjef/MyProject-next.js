@@ -1,5 +1,6 @@
 import { authUser } from "@/utils/serverHelpers";
 import { removeLocalUpload, saveUploadedImage } from "@/utils/upload";
+import { safeServerError } from "@/utils/apiError";
 
 export async function POST(req) {
   try {
@@ -12,7 +13,8 @@ export async function POST(req) {
     await removeLocalUpload(old);
     return Response.json({ message: "Avatar updated", avatar: user.avatar });
   } catch (err) {
-    return Response.json({ message: err.message || "Avatar update failed" }, { status: /image/i.test(err.message || "") ? 400 : 500 });
+    if (/image/i.test(err?.message || "")) return Response.json({ message: "Invalid avatar image" }, { status: 400 });
+    return safeServerError(err, "user.avatar");
   }
 }
 
